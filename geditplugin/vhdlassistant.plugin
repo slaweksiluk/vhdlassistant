@@ -1,0 +1,10 @@
+[Plugin]
+Loader=python3
+Module=vhdlassistant
+IAge=3
+Name=VHDL Assistant
+Description=VHDL coding assistant (code hierarchy, syntax checks, testbench generator). 
+Authors=Florian Huemer
+Copyright=Florian Huemer, Software licensed under the terms of the GNU GPL version 3
+Website=
+Version=0.1.0
