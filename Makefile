@@ -21,6 +21,10 @@ install: all
 	cp vhdlparser/vhdlparser $(INSTALL_DEST)/vhdlassistant/PyVhdlUtil
 	cp snippetformatter/snippetformatter $(INSTALL_DEST)/vhdlassistant/PyVhdlUtil
 
+uninstall:
+	rm -f $(INSTALL_DEST)/vhdlassistant.plugin
+	rm -fr $(INSTALL_DEST)/vhdlassistant
+
 clean:
 	make clean -C vhdlparser
 	make clean -C snippetformatter
