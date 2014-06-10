@@ -1,5 +1,4 @@
-
-vhdlassistant is a plugin for gedit.
+vhdlassistant is a plugin for gedit 3.
 
 Features:
   >> code structure view in the editor's side panel,
@@ -28,6 +27,4 @@ Do not use root privileges for the "make install" command, because the plugin is
 installed in the plugins directory of gedit in your home directory
 (~/.local/share/gedit/plugins).
 
-You can use "make uninstall" to remove the plugin. 
-
-
+You can use "make uninstall" to remove the plugin.
