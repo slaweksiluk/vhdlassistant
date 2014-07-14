@@ -23,7 +23,7 @@ run the following commands:
   cd vhdlassistant 
   make install #no root privileges required
 
-Do not use root privileges for the "make install" command, because the plugin is
+Do not use root privileges for the "make install" command. The plugin is
 installed in the plugins directory of gedit in your home directory
 (~/.local/share/gedit/plugins).
 
