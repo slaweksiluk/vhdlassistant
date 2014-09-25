@@ -1,12 +1,12 @@
 vhdlassistant 
-===========
+=============
 
 vhdlassistant is a plugin for gedit 3.10.x
 The plugin itself is written in python3. However, the VHDL parser is implemented 
 in C, using flex and bison.
 
 Features:
-------------
+---------
 * code structure view in the editor's side panel,
 * syntax checks
 * code generation (testbenches, instances of entities/components, ... )
@@ -14,7 +14,7 @@ Features:
   planning to add more.)   
 
 Installation:
-------------------
+-------------
 To build and install vhdlassistant the following tools are required
 
  * flex
