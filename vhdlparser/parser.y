@@ -134,130 +134,147 @@ void yyerror(const char* str)
 	struct text_section *txt_sec;
 }
 
-%token
-t_ACCESS
-t_AFTER
-t_ALIAS
-t_ALL
-t_AND
-t_ARCHITECTURE
-skip_t_ARCHITECTURE
-t_ARRAY
-t_ASSERT
-t_ATTRIBUTE
-t_BEGIN
-t_BLOCK
-t_BODY
-skip_t_BODY
-t_BUFFER
-t_BUS
-t_CASE
-t_COMPONENT
-t_CONFIGURATION
-skip_t_CONFIGURATION
-t_CONSTANT
-t_DISCONNECT
-t_DOWNTO
-t_ELSE
-t_ELSIF
-t_END
-t_ENTITY
-t_EXIT
-t_FILE
-t_FOR
-t_FUNCTION
-t_GENERATE
-t_GENERIC
-t_GUARDED
-t_IF
-t_IMPURE
-t_IN
-t_INERTIAL
-t_INOUT
-%token t_IS "[is]"
-t_LABEL
-t_LIBRARY
-t_LINKAGE
-t_LOOP
-t_MAP
-t_NAND
-t_NEW
-t_NEXT
-t_NOR
-t_NULL
-t_OF
-t_ON
-t_OPEN
-t_OR
-t_OTHERS
-t_OUT
-t_PACKAGE
-t_PORT
-t_POSTPONED
-t_PROCEDURE
-t_PROCESS
-t_PURE
-t_RANGE
-t_REVERSE_RANGE
-t_RECORD
-t_REGISTER
-t_REJECT
-t_REPORT
-t_RETURN
-t_ROL
-t_ROR
-t_SELECT
-t_SEVERITY
-t_SHARED /* In VHDL-93, shared variables may be declared within an architecture, block, generate statement, or package: */
-t_SIGNAL
-t_SLA
-t_SLL
-t_SRA
-t_SRL
-t_SUBTYPE
-t_THEN
-t_TO
-t_TRANSPORT
-t_TYPE
-t_UNITS
-t_UNTIL
-t_USE
-t_VARIABLE
-t_WAIT
-t_WHEN
-t_WHILE
-t_WITH
-t_XNOR
-t_XOR
+
+%token t_ACCESS            "[access]"
+%token t_AFTER             "[after]"
+%token t_ALIAS             "[alias]"
+%token t_ALL               "[all]"
+%token t_AND               "[and]"
+%token t_ARCHITECTURE      "[architecture]"
+%token skip_t_ARCHITECTURE
+%token t_ARRAY             "[array]"
+%token t_ASSERT            "[assert]"
+%token t_ATTRIBUTE         "[attribute]"
+%token t_BEGIN             "[begin]"
+%token t_BLOCK             "[block]"
+%token t_BODY              "[body]"
+%token skip_t_BODY
+%token t_BUFFER            "[buffer]"
+%token t_BUS               "[bus]"
+%token t_CASE              "[case]"
+%token t_COMPONENT         "[component]"
+%token t_CONFIGURATION     "[configuration]"
+%token skip_t_CONFIGURATION
+%token t_CONSTANT          "[constant]"
+%token t_DISCONNECT        "[disconnect]"
+%token t_DOWNTO            "[downto]"
+%token t_ELSE              "[else]"
+%token t_ELSIF             "[elsif]"
+%token t_END               "[end]"
+%token t_ENTITY            "[entity]"
+%token t_EXIT              "[exit]"
+%token t_FILE              "[file]"
+%token t_FOR               "[for]"
+%token t_FUNCTION          "[function]"
+%token t_GENERATE          "[generate]"
+%token t_GENERIC           "[generic]"
+%token t_GUARDED           "[guarded]"
+%token t_IF                "[if]"
+%token t_IMPURE            "[impure]"
+%token t_IN                "[in]"
+%token t_INERTIAL          "[internal]"
+%token t_INOUT             "[inout]"
+%token t_IS                "[is]"
+%token t_LABEL             "[label]"
+%token t_LIBRARY           "[library]"
+%token t_LINKAGE           "[linkage]"
+%token t_LOOP              "[loop]"
+%token t_MAP               "[map]"
+%token t_NAND              "[nand]"
+%token t_NEW               "[new]"
+%token t_NEXT              "[next]"
+%token t_NOR               "[nor]"
+%token t_NULL              "[null]"
+%token t_OF                "[of]"
+%token t_ON                "[on]"
+%token t_OPEN              "[open]"
+%token t_OR                "[or]"
+%token t_OTHERS            "[others]"
+%token t_OUT               "[out]"
+%token t_PACKAGE           "[package]"
+%token t_PORT              "[port]"
+%token t_POSTPONED         "[postponed]"
+%token t_PROCEDURE         "[procedure]"
+%token t_PROCESS           "[process]"
+%token t_PURE              "[pure]"
+%token t_RANGE             "[range]"
+%token t_REVERSE_RANGE     "[reverse_range]"
+%token t_RECORD            "[record]"
+%token t_REGISTER          "[register]"
+%token t_REJECT            "[reject]"
+%token t_REPORT            "[report]"
+%token t_RETURN            "[return]"
+%token t_ROL               "[rol]"
+%token t_ROR               "[ror]"
+%token t_SELECT            "[select]"
+%token t_SEVERITY          "[severity]"
+%token t_SHARED            "[shared]" /* In VHDL-93, shared variables may be declared within an architecture, block, generate statement, or package: */
+%token t_SIGNAL            "[signal]"
+%token t_SLA               "[sla]"
+%token t_SLL               "[sll]"
+%token t_SRA               "[sra]"
+%token t_SRL               "[srl]"
+%token t_SUBTYPE           "[subtype]"
+%token t_THEN              "[then]"
+%token t_TO                "[to]"
+%token t_TRANSPORT         "[transport]"
+%token t_TYPE              "[type]"
+%token t_UNITS             "[units]"
+%token t_UNTIL             "[until]"
+%token t_USE               "[use]"
+%token t_VARIABLE          "[variable]"
+%token t_WAIT              "[wait]"
+%token t_WHEN              "[when]"
+%token t_WHILE             "[while]"
+%token t_WITH              "[with]"
+%token t_XNOR              "[xnor]"
+%token t_XOR               "[xor]"
+
+%token t_EQSym      "[=]"
+%token t_NESym      "[/=]"
+%token t_LTSym      "[<]"
+%token t_LESym      "[<=]"
+%token t_GTSym      "[>=]"
+%token t_GESym      "[>]"
+%token t_Plus       "[+]"
+%token t_Minus      "[-]"
+%token t_Ampersand  "[&]" 
+%token t_Star       "[*]"
+%token t_Slash      "[/]"
+%token t_DoubleStar "[**]"
 
 
-%nonassoc t_EQSym 
+%nonassoc t_EQSym
 %nonassoc t_NESym
 %nonassoc t_LTSym
-%nonassoc t_LESym  "token <="
+%nonassoc t_LESym
 %nonassoc t_GTSym
 %nonassoc t_GESym
-%nonassoc t_SLL t_SRL t_SLA t_SRA t_ROL t_ROR 
-%left t_Plus t_Minus t_Ampersand
-%left MED_PRECEDENCE
+%nonassoc t_SLL
+%nonassoc t_SRL
+%nonassoc t_SLA
+%nonassoc t_SRA
+%nonassoc t_ROL
+%nonassoc t_ROR 
+%left t_Plus t_Minus t_Ampersand MED_PRECEDENCE
 %left t_Star t_Slash t_MOD t_REM
 %nonassoc t_DoubleStar t_ABS t_NOT MAX_PRECEDENCE
 
 %nonassoc t_Colon
 
 
-%token t_Apostrophe  "'"
-%token t_LeftParen   "("
-%token t_RightParen  ")"
-%token t_Comma       ","
-%token t_VarAsgn     ":="
-%token t_Colon       ":"
-%token t_Semicolon   ";"
+%token t_Apostrophe  "[']"
+%token t_LeftParen   "[(]"
+%token t_RightParen  "[)]"
+%token t_Comma       "[,]"
+%token t_VarAsgn     "[:=]"
+%token t_Colon       "[:]"
+%token t_Semicolon   "[;]"
 
-%token t_Arrow       "=>"
-%token t_Box         "<>"
-%token t_Bar         "!"
-%token t_Dot         "."
+%token t_Arrow       "[=>]"
+%token t_Box         "[<>]"
+%token t_Bar         "[!]"
+%token t_Dot         "[.]"
 
 %token t_AbstractLit
 %token t_CharacterLit
@@ -381,7 +398,7 @@ opt_t_AbstractLit:
 physical_literal_no_default:
 	t_AbstractLit t_Identifier
 	 {}
-    ;
+	;
 
 idf_list:
 	  t_Identifier                  { $$ = ll_append_back(NULL, $1); }
@@ -742,7 +759,7 @@ subprog_decltve_item:
 	;
 
 proc_decltve_item:
-	  common_decltve_item  {$$ = NULL;}
+	  common_decltve_item {$$ = NULL;}
 	| subprog_body        {$$ = $1;}
 	| attribute_decl      {$$ = NULL;}
 	| attribute_spec      {$$ = NULL;}

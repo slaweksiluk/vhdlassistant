@@ -211,21 +211,21 @@ struct node_interface_element
 	struct text_section *init_value;
 };
 
-struct node_component *create_component(char *str, int line); 
-struct node_entity *create_entity(char *str, int line); 
-struct node_architecture *create_archtitecture(char *arch_name, char *entity_name, int line); 
-struct node_function_body *create_function_body(char *name, int line); 
-struct node_procedure_body *create_procedure_body(char *name, int line); 
-struct node_function_decl *create_function_decl(char *name, int line); 
-struct node_procedure_decl *create_procedure_decl(char *name, int line); 
-struct node_process *create_process(char *name, int line); 
-struct node_if_generate *create_if_generate(char *name, int line); 
-struct node_for_generate *create_for_generate(char *name, int line); 
-struct node_instance *create_instance(char *name, int line); 
+struct node_component         *create_component(char *str, int line); 
+struct node_entity            *create_entity(char *str, int line); 
+struct node_architecture      *create_archtitecture(char *arch_name, char *entity_name, int line); 
+struct node_function_body     *create_function_body(char *name, int line); 
+struct node_procedure_body    *create_procedure_body(char *name, int line); 
+struct node_function_decl     *create_function_decl(char *name, int line); 
+struct node_procedure_decl    *create_procedure_decl(char *name, int line); 
+struct node_process           *create_process(char *name, int line); 
+struct node_if_generate       *create_if_generate(char *name, int line); 
+struct node_for_generate      *create_for_generate(char *name, int line); 
+struct node_instance          *create_instance(char *name, int line); 
 struct node_interface_element *create_interface_element(int line); 
-struct node_block *create_block(uint32_t line);
-struct node_package_decl * create_package_decl(char *name, int line);
-struct node_package_body * create_package_body(char *name, int line);
+struct node_block             *create_block(uint32_t line);
+struct node_package_decl      *create_package_decl(char *name, int line);
+struct node_package_body      *create_package_body(char *name, int line);
 
 
 struct text_section
