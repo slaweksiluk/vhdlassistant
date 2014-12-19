@@ -42,7 +42,6 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	def do_activate(self):
 		# load configuration
 		self.load_cfg()
-		self.icon = Gtk.Image.new_from_stock(Gtk.STOCK_YES, Gtk.IconSize.MENU)
 		self.register_handlers()
 		
 		
@@ -65,8 +64,19 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		builder.connect_signals(ui_handlers)
 		
 		
-		gedit_side_panel = self.window.get_side_panel()
-		gedit_side_panel.add_item(self.sidepanel_ui, "side_panel_ui", "VHDL Assistant", self.icon)
+		self.gedit_side_panel = self.window.get_side_panel()
+		
+		if(isinstance(self.gedit_side_panel, Gtk.Stack)): # version 3.14 or higher
+			self.gedit_side_panel.add_titled(self.sidepanel_ui, "VHDLAssistant", "VHDLAssistant")
+			self.gedit_side_panel.set_visible_child (self.sidepanel_ui)
+			print("i'm here")
+		else:
+			self.icon = Gtk.Image.new_from_stock(Gtk.STOCK_YES, Gtk.IconSize.MENU)
+			self.gedit_side_panel.add_item(self.sidepanel_ui, "side_panel_ui", "VHDL Assistant", self.icon)
+		
+		self.sidepanel_ui.show_all()
+		self.gedit_side_panel.show_all()
+		
 		
 		#create snippets menu
 		snippetmenu = Gtk.Menu()
@@ -149,11 +159,18 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 	def do_deactivate(self):
 		self.store_cfg()
-		self.remove_handlers(); 
-		self.window.get_side_panel().remove_item(self.sidepanel_ui);
+		self.remove_handlers()
+		
+		if(isinstance(self.gedit_side_panel, Gtk.Stack)):
+			self.gedit_side_panel.remove(self.sidepanel_ui)
+		else:
+			self.gedit_side_panel.remove_item(self.sidepanel_ui)
+		print("do_deactivate")
+		
 
 	def do_update_state(self):
 		pass
+	
 	
 	def on_cfg_button_clicked(self, widget):
 		self.pluginCFGWindow.use_spaces = self.use_spaces
@@ -197,21 +214,25 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 			#print( "Disconnected handler " + str(handler_id))
 
 	def set_side_panel_ui(self, document):
+		print("set_side_panel_ui")
 		if(document != None ) : 
+			print("document != None")
 			if(document.is_vhdl_file == True):
+				print("document.is_vhdl_file == True")
 				self.code_hierarchy_treeview.set_model(document.code_hierarchy_treestore)
 				self.code_hierarchy_treeview.expand_all()
 				self.sidepanel_ui.show_all()
 				if(self.auto_show_sidepanel == True):
-					self.window.get_side_panel().activate_item(self.sidepanel_ui)
+					self.activate_sidepanel()
 			else:
+				print("document.is_vhdl_file == False")
 				self.sidepanel_ui.hide()
 		else:
 			self.sidepanel_ui.hide()
 
 	#handlers
 	def on_tab_added(self, window, tab, data=None) :
-		#print("on_tab_added")
+		print("on_tab_added")
 		doc = tab.get_document()
 		
 		doc.remove_source_marks (doc.get_start_iter(), doc.get_end_iter(), "vhdl") 
@@ -237,7 +258,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 	#called when the selected/active/current tab changed
 	def on_active_tab_changed(self, window, tab, data=None) :
-		#print("on_active_tab_changed");
+		print("on_active_tab_changed");
 		active_document = self.window.get_active_document()
 		self.set_side_panel_ui(active_document)
 
@@ -251,8 +272,8 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		self.set_side_panel_ui(active_document)
 
 
-	def on_document_saved(self, document, error) :
-		#print("on_document_saved");
+	def on_document_saved(self, document, error=None) :
+		print("on_document_saved");
 		self.update_document_vhdl_info(document);
 		#self.set_side_panel_ui(document)
 	
@@ -282,10 +303,13 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	
 
 	def update_document_vhdl_info(self, document):
+		print("update_document_vhdl_info")
 		lang_name = ""
 		if (document.get_language() != None) :
+			print("document.get_language() != None") # the bug is here. document.get_language() returns None 
 			lang_name = document.get_language().get_name();
 		if (lang_name == "VHDL") :
+			print("lang_name == \"VHDL\"")
 			if (document.is_untitled ()):
 				print("file untitled")
 				document.code_hierarchy_treestore = None
@@ -331,8 +355,13 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	def tooltip_callback(self, data, mark) :
 		return mark.error_message;
 	
-	
-	
+	def activate_sidepanel(self):
+		if(isinstance(self.gedit_side_panel, Gtk.Stack)):
+			self.gedit_side_panel.set_visible_child (self.sidepanel_ui)
+			print(""+self.gedit_side_panel.get_visible_child_name())
+		else:
+			self.gedit_side_panel.activate_item(self.sidepanel_ui)
+
 	############################################################################
 	# Load/store configuration
 	############################################################################
