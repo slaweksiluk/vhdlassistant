@@ -279,15 +279,45 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 				self.component_context_menu.show_all()
 			else:
 				print("something else selected")
+
+	def create_new_vhdl_document(self, text):
+		tab = self.window.create_tab(True) 
+		tab.get_document().insert_at_cursor(text)
+		lm = GtkSource.LanguageManager()
+		document = tab.get_document()
+		document.set_language(lm.get_language("vhdl"))	
+		
+		#write to tmp file
+		try:
+			tmp_file_name = "/tmp/vhdlassistant.vhdl"
+			with open(tmp_file_name, "w") as tmp_file:
+    				tmp_file.write(text)
+			
+			code_hierarchy = self.vhdl_parser.get_code_hierarchy_from_file(tmp_file_name)
+			treestore = Gtk.TreeStore(str, str, int)
+			self.create_treestore(treestore, None, code_hierarchy)
+			document.code_hierarchy_treestore = treestore
+			self.create_source_marks(document, self.vhdl_parser.get_error_list());
+			document.is_vhdl_file = True
+			
+			active_document = self.window.get_active_document()
+			self.set_side_panel_ui(active_document)
+		except:
+			print("error writing tmp file")
 	
+		
 
 	def update_document_vhdl_info(self, document):
+		#print("updating");
 		lang_name = ""
 		if (document.get_language() != None) :
 			lang_name = document.get_language().get_name();
+		else:
+			pass;#	print("lang is None")
+
 		if (lang_name == "VHDL") :
 			if (document.is_untitled ()):
-				print("file untitled")
+				#print("file untitled")	
 				document.code_hierarchy_treestore = None
 				document.is_vhdl_file = True
 			else:
@@ -385,11 +415,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	
 		#configure cg
 		cg = CodeGenerator(use_uppercase_keywords=self.use_uppercase_keywords, use_spaces=self.use_spaces, tab_size=self.tab_size)
-		 
-		tab = self.window.create_tab(True) 
-		tab.get_document().insert_at_cursor(cg.gen_testbench(entity, clk_signals)) #generate code
-		lm = GtkSource.LanguageManager()
-		tab.get_document().set_language(lm.get_language("vhdl"))
+		self.create_new_vhdl_document(cg.gen_testbench(entity, clk_signals))	 
 
 	def on_entity_package_activated(self, widget):
 		path = self.window.get_active_document().get_location().get_path()
@@ -397,11 +423,8 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		
 		#configure cg
 		cg = CodeGenerator(use_uppercase_keywords=self.use_uppercase_keywords, use_spaces=self.use_spaces, tab_size=self.tab_size)
-		 
-		tab = self.window.create_tab(True) 
-		tab.get_document().insert_at_cursor(cg.gen_package_with_component_declaration(entity)) #generate code
-		lm = GtkSource.LanguageManager()
-		tab.get_document().set_language(lm.get_language("vhdl"))
+	
+		self.create_new_vhdl_document(cg.gen_package_with_component_declaration(entity))	 
 	
 	def on_entity_instance_activated(self, widget):
 		path = self.window.get_active_document().get_location().get_path()
