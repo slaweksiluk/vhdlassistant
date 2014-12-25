@@ -121,10 +121,8 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	def on_code_snippet_menu_clicked(self, widget):
 		tab = self.window.create_tab(True) 
 		snippet_content = widget.code_snippet.content;
-		snippet_content = self.csm.format_sippet_content(snippet_content)
-		tab.get_document().insert_at_cursor(snippet_content) 
-		lm = GtkSource.LanguageManager()
-		tab.get_document().set_language(lm.get_language("vhdl"))
+		snippet_content = self.csm.format_sippet_content(snippet_content)		
+		self.create_new_vhdl_document(snippet_content)	 
 	
 	def on_insert_snippet(self, content, destination):
 		
@@ -132,10 +130,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 			self.clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 			self.clipboard.set_text(content, -1)
 		elif(destination == 1):
-			tab = self.window.create_tab(True) 
-			tab.get_document().insert_at_cursor(content) 
-			lm = GtkSource.LanguageManager()
-			tab.get_document().set_language(lm.get_language("vhdl"))
+			self.create_new_vhdl_document(content)	 
 		elif(destination == 2):
 			tab = self.window.get_active_document().insert_at_cursor(content) 
 		else:
