@@ -269,11 +269,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 	def on_document_saved(self, document, error=None) :
 		print("on_document_saved");
-<<<<<<< HEAD
 		self.update_document_vhdl_info(document)
-=======
-		self.update_document_vhdl_info(document);
->>>>>>> f91df214e3bd6fff1bfd6453666a3ba34a6541f5
 		#self.set_side_panel_ui(document)
 
 	# called when documnent has been fully loaded (and the Language object has been initialized)  		
