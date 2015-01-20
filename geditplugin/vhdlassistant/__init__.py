@@ -69,7 +69,6 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		if(isinstance(self.gedit_side_panel, Gtk.Stack)): # version 3.14 or higher
 			self.gedit_side_panel.add_titled(self.sidepanel_ui, "VHDLAssistant", "VHDLAssistant")
 			self.gedit_side_panel.set_visible_child (self.sidepanel_ui)
-			print("i'm here")
 		else:
 			self.icon = Gtk.Image.new_from_stock(Gtk.STOCK_YES, Gtk.IconSize.MENU)
 			self.gedit_side_panel.add_item(self.sidepanel_ui, "side_panel_ui", "VHDL Assistant", self.icon)
@@ -153,6 +152,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		self.codeSnippetsWindow.show()
 
 	def do_deactivate(self):
+		#print("do_deactivate")
 		self.store_cfg()
 		self.remove_handlers()
 		
@@ -160,7 +160,6 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 			self.gedit_side_panel.remove(self.sidepanel_ui)
 		else:
 			self.gedit_side_panel.remove_item(self.sidepanel_ui)
-		print("do_deactivate")
 		
 
 	def do_update_state(self):
@@ -209,25 +208,25 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 			#print( "Disconnected handler " + str(handler_id))
 
 	def set_side_panel_ui(self, document):
-		print("set_side_panel_ui")
+		#print("set_side_panel_ui")
 		if(document != None ) : 
-			print("document != None")
+			#print("document != None")
 			if(document.is_vhdl_file == True):
-				print("document.is_vhdl_file == True")
+				#print("document.is_vhdl_file == True")
 				self.code_hierarchy_treeview.set_model(document.code_hierarchy_treestore)
 				self.code_hierarchy_treeview.expand_all()
 				self.sidepanel_ui.show_all()
 				if(self.auto_show_sidepanel == True):
 					self.activate_sidepanel()
 			else:
-				print("document.is_vhdl_file == False")
+				#print("document.is_vhdl_file == False")
 				self.sidepanel_ui.hide()
 		else:
 			self.sidepanel_ui.hide()
 
 	#handlers
 	def on_tab_added(self, window, tab, data=None) :
-		print("on_tab_added")
+		#print("on_tab_added")
 		doc = tab.get_document()
 		doc.is_vhdl_file = False
 		doc.connect_after("loaded", self.on_document_loaded) #workaround for the buf introduced in 3.14			
@@ -253,7 +252,7 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 	#called when the selected/active/current tab changed
 	def on_active_tab_changed(self, window, tab, data=None) :
-		print("on_active_tab_changed");
+		#print("on_active_tab_changed");
 		active_document = self.window.get_active_document()
 		self.set_side_panel_ui(active_document)
 
@@ -268,13 +267,13 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 
 	def on_document_saved(self, document, error=None) :
-		print("on_document_saved");
+		#print("on_document_saved");
 		self.update_document_vhdl_info(document)
 		#self.set_side_panel_ui(document)
 
 	# called when documnent has been fully loaded (and the Language object has been initialized)  		
 	def on_document_loaded (self, document, error=None) :
-		print("on_document_loaded")
+		#print("on_document_loaded")
 
 		document.remove_source_marks (document.get_start_iter(), document.get_end_iter(), "vhdl") 
 		self.update_document_vhdl_info(document)
@@ -332,14 +331,14 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		
 
 	def update_document_vhdl_info(self, document):
-		print("update_document_vhdl_info")
+		#print("update_document_vhdl_info")
 		lang_name = ""
 		if (document.get_language() != None) :
-			print("document.get_language() != None") # the bug is here. document.get_language() returns None 
+			#print("document.get_language() != None") # the bug is here. document.get_language() returns None 
 			lang_name = document.get_language().get_name();
 
 		if (lang_name == "VHDL") :
-			print("lang_name == \"VHDL\"")
+			#print("lang_name == \"VHDL\"")
 			if (document.is_untitled ()):
 				#print("file untitled")	
 				document.code_hierarchy_treestore = None
