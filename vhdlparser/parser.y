@@ -208,7 +208,7 @@ void yyerror(const char* str)
 %token t_ROR               "[ror]"
 %token t_SELECT            "[select]"
 %token t_SEVERITY          "[severity]"
-%token t_SHARED            "[shared]" /* In VHDL-93, shared variables may be declared within an architecture, block, generate statement, or package: */
+%token t_SHARED            "[shared]" /* In VHDL-93, shared variables may be declared within an architecture, block, generate statement, or package */
 %token t_SIGNAL            "[signal]"
 %token t_SLA               "[sla]"
 %token t_SLL               "[sll]"
