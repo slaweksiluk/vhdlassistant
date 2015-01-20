@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.16.1 -->
+<!-- Generated with glade 3.18.3 -->
 <interface>
   <requires lib="gtk+" version="3.10"/>
   <object class="GtkAdjustment" id="adjustmentSpinbuttonTabSize">
@@ -223,7 +223,6 @@
               <object class="GtkTreeViewColumn" id="treeviewcolumnType">
                 <property name="resizable">True</property>
                 <property name="sizing">autosize</property>
-                <property name="fixed_width">85</property>
                 <property name="title" translatable="yes">Type</property>
                 <child>
                   <object class="GtkCellRendererText" id="cellrenderertext4"/>

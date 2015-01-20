@@ -229,18 +229,18 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 	def on_tab_added(self, window, tab, data=None) :
 		print("on_tab_added")
 		doc = tab.get_document()
-		
-		doc.remove_source_marks (doc.get_start_iter(), doc.get_end_iter(), "vhdl") 
+		doc.is_vhdl_file = False
+		doc.connect_after("loaded", self.on_document_loaded) #workaround for the buf introduced in 3.14			
+		doc.connect("saved", self.on_document_saved)
+
 		tab.get_view().set_show_line_marks(True)
 		mark_attributes = GtkSource.MarkAttributes()
 		mark_attributes.set_stock_id(Gtk.STOCK_CANCEL)
 		mark_attributes.connect("query_tooltip_text", self.tooltip_callback )
 		tab.get_view().set_mark_attributes("vhdl", mark_attributes, 1) 
-		
-		
-		doc.connect("saved", self.on_document_saved);
-		self.update_document_vhdl_info(doc)
-		self.set_side_panel_ui(doc);
+
+		#self.update_document_vhdl_info(doc)
+		#self.set_side_panel_ui(doc);
 
 	
 	def on_tab_removed(self, window, tab, data=None) :
@@ -269,8 +269,16 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 
 	def on_document_saved(self, document, error=None) :
 		print("on_document_saved");
-		self.update_document_vhdl_info(document);
+		self.update_document_vhdl_info(document)
 		#self.set_side_panel_ui(document)
+
+	# called when documnent has been fully loaded (and the Language object has been initialized)  		
+	def on_document_loaded (self, document, error=None) :
+		print("on_document_loaded")
+
+		document.remove_source_marks (document.get_start_iter(), document.get_end_iter(), "vhdl") 
+		self.update_document_vhdl_info(document)
+		self.set_side_panel_ui(document)
 	
 	# row was double-clicked in treeview --> jump to line
 	def on_row_activated(self, treeview, path, column):
@@ -328,9 +336,10 @@ class vhdlassistant(GObject.Object, Gedit.WindowActivatable):
 		lang_name = ""
 		if (document.get_language() != None) :
 			print("document.get_language() != None") # the bug is here. document.get_language() returns None 
-			lang_name = document.get_language().get_name();
+			lang_name = document.get_language().get_name()
+			print("document.get_language().get_name() == " +document.get_language().get_name()) 
 		else:
-			pass;#	print("lang is None")
+			print("lang is None")
 
 		if (lang_name == "VHDL") :
 			print("lang_name == \"VHDL\"")
