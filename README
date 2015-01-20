@@ -1,7 +1,7 @@
 vhdlassistant 
 =============
 
-vhdlassistant is a plugin for gedit 3.10.x
+vhdlassistant is a plugin for gedit 3.10.x and 3.14.x
 The plugin itself is written in python3. However, the VHDL parser is implemented 
 in C, using flex and bison.
 
