@@ -36,7 +36,9 @@ enum node_type
 	TYPE_INSTANCE,
 	TYPE_INTERFACE_ELEMENT,
 	TYPE_PACKAGE_DECLARATION,
-	TYPE_PACKAGE_BODY
+	TYPE_PACKAGE_BODY,
+	TYPE_PORT,
+	TYPE_GENERIC
 };
 
 enum mode
@@ -56,6 +58,12 @@ enum object_class
 	OC_VARIABLE = 2,
 	OC_FILE     = 3,
 	OC_NOT_SPECIFIED = 4
+};
+
+struct text_section
+{
+	uint32_t start_position;
+	uint32_t end_position;
 };
 
 
@@ -211,6 +219,27 @@ struct node_interface_element
 	struct text_section *init_value;
 };
 
+struct node_port
+{
+	enum node_type type;
+	int line;
+	char* name;
+	enum mode mode;
+	struct text_section data_type;
+	struct text_section init_value;
+};
+
+
+struct node_generic
+{
+	enum node_type type;
+	int line;
+	char* name;
+	struct text_section data_type;
+	struct text_section init_value;
+};
+
+
 struct node_component         *create_component(char *str, int line); 
 struct node_entity            *create_entity(char *str, int line); 
 struct node_architecture      *create_archtitecture(char *arch_name, char *entity_name, int line); 
@@ -226,13 +255,9 @@ struct node_interface_element *create_interface_element(int line);
 struct node_block             *create_block(uint32_t line);
 struct node_package_decl      *create_package_decl(char *name, int line);
 struct node_package_body      *create_package_body(char *name, int line);
+struct node_port              *create_port(char *name, int line);
+struct node_generic           *create_generic(char *name, int line);
 
-
-struct text_section
-{
-	uint32_t start_position;
-	uint32_t end_position;
-};
 
 #endif
 

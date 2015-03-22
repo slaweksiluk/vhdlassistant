@@ -167,3 +167,28 @@ struct node_package_body * create_package_body(char *name, int line)
 	pkg_decl->declarations = NULL;
 	return pkg_decl;
 }
+
+struct node_port *create_port(char *name, int line)
+{
+	struct node_port *port = malloc(sizeof(struct node_port));
+	port->type = TYPE_PORT;
+	port->name = name;
+	port->line = line;
+	port->mode = MODE_IN;
+	return port;
+}
+
+struct node_generic *create_generic(char *name, int line)
+{
+	struct node_generic *generic = malloc(sizeof(struct node_generic));
+	generic->type = TYPE_GENERIC;
+	generic->name = name;
+	generic->line = line;
+	return generic;
+}
+
+
+
+
+
+

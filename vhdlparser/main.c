@@ -26,6 +26,7 @@
 #include "linked_list.h"
 #include "parser_error.h"
 #include "ast.h"
+#include "vector.h"
 
 extern uint32_t yytextposition;
 extern FILE * yyin;
@@ -41,8 +42,8 @@ void generate_output(struct ll_node *parse_result, int level);
 void print_errors(struct ll_node *error_list);
 void print_entity(struct node_entity *entity);
 void print_component(struct node_component *component);
-void print_generic_section(struct ll_node *interface_element_list);
-void print_port_section(struct ll_node *interface_element_list);
+void print_generic_section(vector *generic_vector);
+void print_port_section(vector *port_vector);
 
 /*not used anymore*/
 struct node_entity* find_entity(struct ll_node *parse_result, char *name);
@@ -108,6 +109,31 @@ int main(int argc, char *argv[])
 				print_component(found_component);
 			}
 		}
+		/*else if(!strcmp("--vectest", argv[1]))
+		{
+			vector* vec = vector_new(4);
+			vector_add(vec, "test0");
+			vector_add(vec, "test1");
+			vector_add(vec, "test2");
+			vector_add(vec, "test3");
+			vector_add(vec, "test4");
+			
+			printf("%i\n", vec->capacity);
+			
+			vector* vec2 = vector_new(4);
+			vector_add(vec2, "vec2test0");
+			vector_add(vec2, "vec2test1");
+			vector_add(vec2, "vec2test2");
+			vector_add(vec2, "vec2test3");
+			vector_add(vec2, "vec2test4");
+			
+			vector_add_range(vec, vec2);
+			
+			for(int i=0; i<vec->count; i++)
+			{
+				printf("%s\n", (char*)vector_get(vec, i));
+			}
+		}*/
 	}
 	
 	
@@ -128,62 +154,47 @@ void print_entity(struct node_entity *entity)
 	print_port_section(entity->port_section);
 }
 
-void print_generic_section(struct ll_node *interface_element_list)
+
+void print_generic_section(vector *generic_vector)
 {
 	printf("[generic]\n");
-	while(interface_element_list != NULL)
+	
+	for(int i=0; i<generic_vector->count; i++)
 	{
-		struct node_interface_element * in_el = (struct node_interface_element *)interface_element_list->data; 
-		
-		struct ll_node *ident_list = in_el->identifier_list;
-		while(ident_list != NULL)
+		struct node_generic * generic = (struct node_generic*)vector_get(generic_vector, i); 
+		printf("%s\t", generic->name);
+			
+		print_text_section(yyin, &generic->data_type);
+			
+		if(generic->init_value.end_position != 0)
 		{
-			printf("%s\t", (char*)ident_list->data);
+			printf("\t");
+			print_text_section(yyin, &generic->init_value);
+		}
 			
-			print_text_section(yyin, in_el->data_type);
-			
-			if(in_el->init_value != NULL)
-			{
-				printf("\t");
-				print_text_section(yyin, in_el->init_value);
-			}
-			
-			printf("\n");
-			
-			ident_list = ident_list->next;
-		} 
-		
-		interface_element_list = interface_element_list->next;
+		printf("\n");
 	}
 }
 
-void print_port_section(struct ll_node *interface_element_list)
+
+void print_port_section(vector *port_vector)
 {
 	printf("[port]\n");
 	
-	while(interface_element_list != NULL)
+	for(int i=0; i<port_vector->count; i++)
 	{
-		struct node_interface_element * in_el = (struct node_interface_element *)interface_element_list->data; 
-		
-		struct ll_node *ident_list = in_el->identifier_list;
-		while(ident_list != NULL)
+		struct node_port * port = (struct node_port*)vector_get(port_vector, i); 
+		printf("%s\t%x\t", port->name, port->mode);
+			
+		print_text_section(yyin, &port->data_type);
+			
+		if(port->init_value.end_position != 0)
 		{
-			printf("%s\t%x\t", (char*)ident_list->data, in_el->mode);
+			printf("\t");
+			print_text_section(yyin, &port->init_value);
+		}
 			
-			print_text_section(yyin, in_el->data_type);
-			
-			if(in_el->init_value != NULL)
-			{
-				printf("\t");
-				print_text_section(yyin, in_el->init_value);
-			}
-			
-			printf("\n");
-			
-			ident_list = ident_list->next;
-		} 
-		
-		interface_element_list = interface_element_list->next;
+		printf("\n");
 	}
 }
 

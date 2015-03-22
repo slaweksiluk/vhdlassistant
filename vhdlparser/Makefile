@@ -6,8 +6,8 @@ HEADER_FILES = $(wildcard $(SRC_DIR)/*.h)
 OBJECTS = $(SOURCES:.c=.o)
 
 
-INCLUDE_DIRS = 
-GCC_ARGS=-std=c90 -Wall
+INCLUDE_DIRS = -I$(shell pwd)
+CC_ARGS=-std=c11 -Wall
 
 BIN_NAME=vhdlparser
 
@@ -23,7 +23,7 @@ $(FLEXBISON_DIR)/scanner.c: scanner.l $(FLEXBISON_DIR)/parser.tab.c
 
 $(FLEXBISON_DIR)/parser.tab.c: parser.y
 	mkdir -p $(FLEXBISON_DIR) 
-	bison parser.y -d --warnings=all -v -o $(FLEXBISON_DIR)/parser.tab.c
+	bison parser.y -d  -v -o $(FLEXBISON_DIR)/parser.tab.c
 
 clean:
 	rm -f *.o

@@ -54,22 +54,16 @@ typedef struct YYLTYPE
 #include <stdarg.h>
 #include <assert.h>
 #include <malloc.h>
-#include "../ast.h"
-#include "../linked_list.h"
-#include "../parser_error.h"
+#include "ast.h"
+#include "linked_list.h"
+#include "parser_error.h"
+#include "vector.h"
 
 /* Pass the argument to yyparse through to yylex. */
 #define YYPARSE_PARAM scanner
 
 #define YYINITDEPTH 10000
 #define YYMAXDEPTH 100000
-
-
-/* This is a hack to prevent the bison sceleton to declare a prototype
-   for yyparse. Since yyparse is a qualified name, it can't be used
-   in a prototype. */
-
-//#define YYPARSE_PARAM dummy
 
 
 #define YYDEBUG 1
@@ -89,7 +83,7 @@ extern int yylineno;
 void yyerror(const char* str)
 {
 	//printf("Error near line %i!\n %s\n", yylineno, str);
-	struct parser_error *err = (struct parser_error*)create_error_message(yylineno-1, strdup(str)); 
+	struct parser_error *err = (struct parser_error*)create_error_message(yylineno-1, (char*)strdup(str)); 
 	error_list = ll_append_back(error_list, err);
 }
 
@@ -124,13 +118,14 @@ void yyerror(const char* str)
 
 %error-verbose
 %locations
-%pure_parser
+%pure-parser
 %union {
 	int num;
 	char* str;
 	void *nPtr;
 	struct ast_node *node;
 	struct ll_node *ll_node;
+	struct vector_t* vec;
 	struct text_section *txt_sec;
 }
 
@@ -329,11 +324,17 @@ void yyerror(const char* str)
 
 %type <nPtr> opt_generic_and_port_clauses
 
-%type <ll_node> generic_clause
-%type <ll_node> port_clause
-%type <ll_node> port_interface_list
-%type <ll_node> generic_interface_list
 %type <ll_node> idf_list
+
+%type <vec> port_clause
+%type <vec> port_interface_list
+%type <vec> port_element
+%type <vec> opt_more_port_elements
+
+%type <vec> generic_clause
+%type <vec> generic_interface_list
+%type <vec> generic_element
+%type <vec> opt_more_generic_elements
 
 %type <ll_node> opt_more_interface_elements
 %type <ll_node> interf_list_1
@@ -459,8 +460,8 @@ entity_declaration:
 	t_END opt_entity_end t_Semicolon
 		{
 			struct node_entity* entity = create_entity($2, @1.first_line);
-			entity->generic_section = ((struct ll_node**)$4)[0];
-			entity->port_section = ((struct ll_node**)$4)[1];
+			entity->generic_section = ((vector**)$4)[0];
+			entity->port_section = ((vector**)$4)[1];
 			$$ = (struct ast_node*)entity;
 			if ($8 != NULL)
 			{
@@ -480,28 +481,28 @@ entity_declaration:
 opt_generic_and_port_clauses:
 	  /* nothing */
 		{
-			struct ll_node **generic_port_buffer = (struct ll_node**)malloc(2*sizeof(struct ll_node*));
+			vector **generic_port_buffer = (vector**)malloc(2*sizeof(vector*));
 			generic_port_buffer[0] = NULL;
 			generic_port_buffer[1] = NULL;
 			$$ = generic_port_buffer;
 		}
 	| generic_clause
 		{
-			struct ll_node **generic_port_buffer = (struct ll_node**)malloc(2*sizeof(struct ll_node*));
+			vector **generic_port_buffer = (vector**)malloc(2*sizeof(vector*));
 			generic_port_buffer[0] = $1;
 			generic_port_buffer[1] = NULL;
 			$$ = generic_port_buffer;
 		}
 	| port_clause
 		{
-			struct ll_node **generic_port_buffer = (struct ll_node**)malloc(2*sizeof(struct ll_node*));
+			vector **generic_port_buffer = (vector**)malloc(2*sizeof(vector*));
 			generic_port_buffer[0] = NULL;
 			generic_port_buffer[1] = $1;
 			$$ = generic_port_buffer;
 		}
 	| generic_clause port_clause
 		{
-			struct ll_node **generic_port_buffer = (struct ll_node**)malloc(2*sizeof(struct ll_node*));
+			vector **generic_port_buffer = (vector**)malloc(2*sizeof(vector*));
 			generic_port_buffer[0] = $1;
 			generic_port_buffer[1] = $2;
 			$$ = generic_port_buffer;
@@ -518,28 +519,15 @@ opt_generic_and_port_clauses:
 		}
 	;
 
-/*
-opt_generic_clause:
-	/ nothing /
-    |	generic_clause
-    ;
-*/
 
 generic_clause:
-	t_GENERIC generic_interface_list t_Semicolon { $$ = $2; }
+	t_GENERIC t_LeftParen generic_interface_list t_RightParen t_Semicolon { $$ = $3; }
 	;
-
-
-/*
-opt_port_clause:
-	/ nothing /
-    |	port_clause
-    ;
-*/
 
 port_clause:
-	t_PORT port_interface_list t_Semicolon { $$ = $2; }
+	t_PORT t_LeftParen port_interface_list t_RightParen t_Semicolon { $$ = $3; }
 	;
+
 
 entity_decl_part:
 	/* nothing */
@@ -873,60 +861,134 @@ subprog_body_decl_part:
 ----------------------------------------------------*/
 
 port_interface_list:
-	interf_list_1
+	port_element opt_more_port_elements 
 		{
-			$$ = $1;
-			struct ll_node *temp = $1;
-			while(temp != NULL) 
-			{
-				struct node_interface_element* in_el = (struct node_interface_element*)temp->data;
-				
-				//in port interfaces OBJECT CLASS must be signal
-				if (in_el->object_class == OC_NOT_SPECIFIED || in_el->object_class == OC_SIGNAL) {
-					in_el->object_class = OC_SIGNAL;
-				} else {
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(in_el->line, ERROR_PORT_OBJECT_CLASS));
+				$$ = $1;
+				if($2 != NULL) {
+					vector_add_range($1, $2);
+					vector_free($2);
 				}
-				
-				/*defualt mode is IN*/
-				if (in_el->mode == MODE_NOT_SPECIFIED)
-				{
-					in_el->mode = MODE_IN;
-				}
-				
-				//printf("%x\n", ((struct node_interface_element*)temp->data)->mode);
-				temp = temp->next;
+		}
+	;
+
+opt_more_port_elements:
+	/* nothing */     { $$ = NULL ; }
+	|
+	opt_more_port_elements t_Semicolon port_element
+		{
+			if($1 == NULL) {
+				$$ = $3;
+			} else {
+				$$ = $3;
+				vector_add_range($3, $1);
+				vector_free($1);
 			}
 		}
 	;
 
-generic_interface_list:
-	interf_list_1
+port_element:
+	opt_object_class idf_list t_Colon opt_mode subtype_indic opt_t_BUS opt_var_init
 		{
-			$$ = $1;
-			struct ll_node *temp = $1;
+			vector* vec = vector_new(ll_length($2));
+			
+			struct ll_node *temp = $2;
 			while(temp != NULL) 
 			{
-				struct node_interface_element* in_el = (struct node_interface_element*)temp->data;
+				char * name = (char*)temp->data;
+				struct node_port *port = create_port(name, @2.first_line);
 				
-				//in port interfaces OBJECT CLASS must be signal
-				if (in_el->object_class == OC_NOT_SPECIFIED || in_el->object_class == OC_CONSTANT) {
-					in_el->object_class = OC_CONSTANT;
+				if( $1 != OC_NOT_SPECIFIED && $1 != OC_SIGNAL) {
+					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(port->line, ERROR_PORT_OBJECT_CLASS));
+				} 
+				if($4 == MODE_NOT_SPECIFIED){
+					port->mode = MODE_IN;
 				} else {
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(in_el->line, ERROR_GENERIC_OBJECT_CLASS));
+					port->mode = $4;
 				}
 				
-				/*defualt mode is IN*/
-				if (in_el->mode == MODE_NOT_SPECIFIED || in_el->mode == MODE_IN) {
-					in_el->mode = MODE_IN;
-				} else {
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(in_el->line, ERROR_GENERIC_MODE));  
-				}
+				port->data_type.start_position = @5.start_position;
+				port->data_type.end_position = @5.end_position;
 				
+				if ( $7 == NULL) {
+					port->init_value.start_position = 0;
+					port->init_value.end_position = 0;
+				} else {
+					port->init_value.start_position = $7->start_position;
+					port->init_value.end_position = $7->end_position;
+				}
+				vector_add(vec, port);
 				temp = temp->next;
+			}
+			
+			//free($2); //free ident list  //TODO
+			
+			$$ = vec;
+		}
+	;
+
+generic_interface_list:
+	generic_element opt_more_generic_elements 
+		{
+				$$ = $1;
+				if($2 != NULL) {
+					vector_add_range($1, $2);
+					vector_free($2);
+				}
+		}
+	;
+
+opt_more_generic_elements:
+	/* nothing */     { $$ = NULL ; }
+	|
+	opt_more_generic_elements t_Semicolon generic_element
+		{
+			if($1 == NULL) {
+				$$ = $3;
+			} else {
+				$$ = $3;
+				vector_add_range($3, $1);
+				vector_free($1);
 			}
 		}
 	;
+
+generic_element:
+	opt_object_class idf_list t_Colon opt_mode subtype_indic opt_t_BUS opt_var_init
+		{
+			vector* vec = vector_new(ll_length($2));
+			
+			struct ll_node *temp = $2;
+			while(temp != NULL) 
+			{
+				char * name = (char*)temp->data;
+				struct node_generic *generic = create_generic(name, @2.first_line);
+				
+				if( $1 != OC_NOT_SPECIFIED && $1 != OC_CONSTANT) {
+					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(generic->line, ERROR_GENERIC_OBJECT_CLASS));
+				} 
+				if($4 != MODE_NOT_SPECIFIED && $4 != MODE_IN){
+					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(generic->line, ERROR_GENERIC_MODE));
+				}
+				
+				generic->data_type.start_position = @5.start_position;
+				generic->data_type.end_position = @5.end_position;
+				
+				if ( $7 == NULL) {
+					generic->init_value.start_position = 0;
+					generic->init_value.end_position = 0;
+				} else {
+					generic->init_value.start_position = $7->start_position;
+					generic->init_value.end_position = $7->end_position;
+				}
+				vector_add(vec, generic);
+				temp = temp->next;
+			}
+			
+			//free($2); //free ident list //TODO
+			$$ = vec;
+		}
+	;
+
 
 interf_list:
 	interf_list_1   { $$ = NULL; /*TODO free memory*/}
@@ -2455,8 +2517,8 @@ comp_decl:
 	t_END t_COMPONENT opt_t_Identifier t_Semicolon
 		{
 			struct node_component *component = create_component($2, @1.first_line);
-			component->generic_section = ((struct ll_node**)$4)[0];
-			component->port_section = ((struct ll_node**)$4)[1];
+			component->generic_section = ((vector**)$4)[0];
+			component->port_section = ((vector**)$4)[1];
 			$$ = (struct ast_node*)component;
 			if ($7 != NULL)
 			{
