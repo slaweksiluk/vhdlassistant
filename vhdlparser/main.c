@@ -159,6 +159,11 @@ void print_generic_section(vector *generic_vector)
 {
 	printf("[generic]\n");
 	
+	if(generic_vector == NULL)
+	{
+		return;
+	}
+	
 	for(int i=0; i<generic_vector->count; i++)
 	{
 		struct node_generic * generic = (struct node_generic*)vector_get(generic_vector, i); 
@@ -180,6 +185,11 @@ void print_generic_section(vector *generic_vector)
 void print_port_section(vector *port_vector)
 {
 	printf("[port]\n");
+	
+	if(port_vector == NULL)
+	{
+		return;
+	}
 	
 	for(int i=0; i<port_vector->count; i++)
 	{
