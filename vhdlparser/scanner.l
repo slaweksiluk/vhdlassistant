@@ -55,7 +55,13 @@ uint32_t yytextposition = 0;
 		yylloc->end_position   = yytextposition+yyleng-1;    \
 		yytextposition += yyleng; \
 	}while(0); 
-	
+
+
+void reset_scanner()
+{
+	YY_FLUSH_BUFFER;
+}
+
 %}
 
 
