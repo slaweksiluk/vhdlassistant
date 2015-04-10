@@ -71,6 +71,15 @@ void vector_free(vector* vec)
 	free(vec);
 }
 
+void vector_reverse_order(vector* vec)
+{
+	for( int i=0; i<(int)(vec->count/2); i++)
+	{
+		void *temp = vec->data[i];
+		vec->data[i] = vec->data[vec->count-i-1];
+		vec->data[vec->count-i-1] = temp;
+	}
+}
 
 
 

@@ -863,11 +863,14 @@ subprog_body_decl_part:
 port_interface_list:
 	port_element opt_more_port_elements 
 		{
-				$$ = $1;
 				if($2 != NULL) {
-					vector_add_range($1, $2);
-					vector_free($2);
+					vector_add_range($2, $1);
+					vector_free($1);
+					$$ = $2;
+				} else {
+					$$ = $1;
 				}
+				vector_reverse_order($$);
 		}
 	;
 
@@ -929,11 +932,14 @@ port_element:
 generic_interface_list:
 	generic_element opt_more_generic_elements 
 		{
-				$$ = $1;
 				if($2 != NULL) {
-					vector_add_range($1, $2);
-					vector_free($2);
+					vector_add_range($2, $1);
+					vector_free($1);
+					$$ = $2;
+				} else {
+					$$ = $1;
 				}
+				vector_reverse_order($$);
 		}
 	;
 

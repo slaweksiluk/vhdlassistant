@@ -19,7 +19,7 @@ int vector_add(vector *vec, void *item);
 int vector_add_range(vector* vec, vector* range);
 void *vector_get(vector *vec, int idx);
 void vector_free(vector* vec);
-
+void vector_reverse_order(vector* vec);
 
 #endif /*_VECTOR_H_*/
 
