@@ -57,9 +57,10 @@ uint32_t yytextposition = 0;
 	}while(0); 
 
 
-void reset_scanner()
+void reset_scanner(FILE* file)
 {
 	YY_FLUSH_BUFFER;
+	yyrestart(file);
 }
 
 %}
