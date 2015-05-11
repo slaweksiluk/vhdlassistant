@@ -1315,7 +1315,7 @@ attribute_prefix:
     | name2 t_Apostrophe {}
     ;
 
-
+//special attributes range and reverse_range: e.g. e'range
 range_attribute_name:
     attribute_prefix t_RANGE
          {}
@@ -1364,9 +1364,13 @@ opt_attribute_param:
 
 aggregate:
 	rev_element_association_list2 t_RightParen
-	{}
+	{
+		//printf("aggregate1\n");
+	}
     |	t_LeftParen choices t_Arrow expr t_RightParen
-	{}
+	{
+		//printf("aggregate2\n");
+	}
     ;
 
 rev_element_association_list2:
@@ -2310,27 +2314,13 @@ rev_seq_stats:
 	{}
     ;
 
-/*seq_stat: opt_label seq_stat_1;*/
+seq_stat
+	: seq_stat_1 
+	| t_Identifier t_Colon seq_stat_1 //labeled statement
+	;
 
-seq_stat:
-	seq_stat_1 
-	| t_Identifier t_Colon seq_stat_1
-	| t_Identifier t_VarAsgn unlabeled_variable_assign_stat
-	| t_Identifier t_LESym unlabeled_assign_stat
-;
-
-unlabeled_variable_assign_stat:
-	expr t_Semicolon
-	{}
-    ;
-
-unlabeled_assign_stat:
-	delay_mechanism wavefrm t_Semicolon 
-	{}
-    ;
-
-seq_stat_1:
-	 assertion_stat        {}
+seq_stat_1
+    :	assertion_stat        {}
     |	report_stat           {}
     |	case_stat             {}
     |	exit_stat             {}
