@@ -225,7 +225,8 @@ base_specifier       (B|b|O|o|X|x)
 
 
 {letter_or_u}(_?{letter_or_u_or_digit})* {
-	yylval->str = (char*)strdup(yytext);
+	yylval->str = (char*)malloc((yyleng+1)*sizeof(char));
+	memcpy(yylval->str, yytext, yyleng+1);
 	if (yytext[0] == '_' || yytext[yyleng-1] == '_' )
 	{
 		struct parser_error *err = (struct parser_error *)create_error_id(yylineno, ERROR_UNDERSCORE);
@@ -240,7 +241,11 @@ base_specifier       (B|b|O|o|X|x)
 
 '({graphic_char}|\"|\%)'    { return t_CharacterLit; }
 
-(\"({graphic_char}|(\"\")|\%)*\")|(\%({graphic_char}|(\%\%)|\")*\%) { 	yylval->str = (char*)strdup(yytext); return t_StringLit; }
+(\"({graphic_char}|(\"\")|\%)*\")|(\%({graphic_char}|(\%\%)|\")*\%) {
+	yylval->str = (char*)malloc((yyleng+1)*sizeof(char));
+	memcpy(yylval->str, yytext, yyleng+1); 
+	return t_StringLit; 
+}
 
 {base_specifier}(\"{extended_digit}(_?{extended_digit})*\"|\%{extended_digit}(_?{extended_digit})*\%)  { return t_StringLit; }
 

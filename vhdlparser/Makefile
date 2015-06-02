@@ -7,7 +7,7 @@ OBJECTS = $(SOURCES:.c=.o)
 
 
 INCLUDE_DIRS = -I$(shell pwd)
-CC_ARGS=-std=c11 -Wall
+CC_ARGS=-std=gnu11 -Wall
 
 BIN_NAME=vhdlparser
 
@@ -15,7 +15,7 @@ BIN_NAME=vhdlparser
 	gcc -c $(CC_ARGS) $(INCLUDE_DIRS) $< -o $@
 
 all: $(OBJECTS)
-	gcc  $(OBJECTS) -o $(BIN_NAME)
+	gcc $(CC_ARGS) $(OBJECTS) -o $(BIN_NAME)
 
 $(FLEXBISON_DIR)/scanner.c: scanner.l $(FLEXBISON_DIR)/parser.tab.c 
 	mkdir -p $(FLEXBISON_DIR)
