@@ -397,6 +397,9 @@ void print_errors(struct ll_node *error_list)
 			case ERROR_COMPONENT_NOT_FOUND:
 				printf("component %s could not be found", ((struct parser_error_1s*)(err))->s0);
 				break;
+			case ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE:
+				printf("Port or Generic clauses must NOT be empty");
+				break;
 			default:
 				printf("Unknown Error id (This indicates a bug, please report)");
 				break;

@@ -327,12 +327,10 @@ void yyerror(const char* str)
 %type <vec> port_clause
 %type <vec> port_interface_list
 %type <vec> port_element
-%type <vec> opt_more_port_elements
 
 %type <vec> generic_clause
 %type <vec> generic_interface_list
 %type <vec> generic_element
-%type <vec> opt_more_generic_elements
 
 %type <ll_node> opt_more_interface_elements
 %type <ll_node> interf_list_1
@@ -406,7 +404,7 @@ physical_literal_no_default:
 
 idf_list:
 	  t_Identifier                  { $$ = ll_append_back(NULL, $1); }
-	| idf_list t_Comma t_Identifier { $$ = ll_append_back($1, $3);   }
+	| idf_list t_Comma t_Identifier { $$ = ll_append_back($1, $3); }
 	;
 
 /*------------------------------------------
@@ -522,10 +520,22 @@ opt_generic_and_port_clauses:
 
 generic_clause:
 	t_GENERIC t_LeftParen generic_interface_list t_RightParen t_Semicolon { $$ = $3; }
+	| t_GENERIC t_LeftParen t_RightParen t_Semicolon 
+		{ 
+			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
+			error_list = ll_append_back(error_list, err);
+			$$ = NULL;
+		}
 	;
 
-port_clause:
-	t_PORT t_LeftParen port_interface_list t_RightParen t_Semicolon { $$ = $3; }
+port_clause
+	: t_PORT t_LeftParen port_interface_list t_RightParen t_Semicolon { $$ = $3; }
+	| t_PORT t_LeftParen t_RightParen t_Semicolon 
+		{ 
+			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
+			error_list = ll_append_back(error_list, err);
+			$$ = NULL;
+		}
 	;
 
 
@@ -860,32 +870,15 @@ subprog_body_decl_part:
 --  Interface Lists and Associaton Lists
 ----------------------------------------------------*/
 
-port_interface_list:
-	port_element opt_more_port_elements 
+port_interface_list
+	: port_element 
 		{
-				if($2 != NULL) {
-					vector_add_range($2, $1);
-					vector_free($1);
-					$$ = $2;
-				} else {
-					$$ = $1;
-				}
-				vector_reverse_order($$);
+			$$ = $1;
 		}
-	;
-
-opt_more_port_elements:
-	/* nothing */     { $$ = NULL ; }
-	|
-	opt_more_port_elements t_Semicolon port_element
+	| port_interface_list t_Semicolon port_element
 		{
-			if($1 == NULL) {
-				$$ = $3;
-			} else {
-				$$ = $3;
-				vector_add_range($3, $1);
-				vector_free($1);
-			}
+			vector_add_range($1, $3);
+			vector_free($3);
 		}
 	;
 
@@ -929,32 +922,15 @@ port_element:
 		}
 	;
 
-generic_interface_list:
-	generic_element opt_more_generic_elements 
+generic_interface_list
+	: generic_element 
 		{
-				if($2 != NULL) {
-					vector_add_range($2, $1);
-					vector_free($1);
-					$$ = $2;
-				} else {
-					$$ = $1;
-				}
-				vector_reverse_order($$);
+			$$ = $1;
 		}
-	;
-
-opt_more_generic_elements:
-	/* nothing */     { $$ = NULL ; }
-	|
-	opt_more_generic_elements t_Semicolon generic_element
+	| generic_interface_list t_Semicolon generic_element
 		{
-			if($1 == NULL) {
-				$$ = $3;
-			} else {
-				$$ = $3;
-				vector_add_range($3, $1);
-				vector_free($1);
-			}
+			vector_add_range($1, $3);
+			vector_free($3);
 		}
 	;
 
