@@ -127,7 +127,7 @@ class VhdlParser:
 					else:
 						print("error")
 				elif (is_port_section == True):
-					m = re.search('(.+)[ \t]([0-9]+)[ \t]([^\t]+)($|[ \t]([^\t]+)$)', line)
+					m = re.search('([^\t]+)[ \t]([0-9]+)[ \t]([^\t]+)($|[ \t]([^\t]+)$)', line)
 					if (m != None):
 						name = m.group(1)
 						mode = int(m.group(2))
