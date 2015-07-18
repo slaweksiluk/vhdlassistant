@@ -62,8 +62,8 @@ enum object_class
 
 struct text_section
 {
-	uint32_t start_position;
-	uint32_t end_position;
+	long start_position;
+	long end_position;
 };
 
 

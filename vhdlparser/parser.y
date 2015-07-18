@@ -29,7 +29,33 @@
 */
 
 
+//%output  "bison.c"
+//%defines "bison.h"
+%define api.pure full
+%lex-param   { yyscan_t scanner }
+%parse-param { yyscan_t scanner }
+
+%{
+//#define YYDEBUG 1
+
+//more detailed error messages for syntax errors
+#define YYERROR_VERBOSE 1
+%}
+
+%locations
+%union {
+	int num;
+	char* str;
+	void *nPtr;
+	struct ast_node *node;
+	struct ll_node *ll_node;
+	struct vector_t* vec;
+	struct text_section *txt_sec;
+}
+
 %code requires{
+
+
 
 #define YYLTYPE_IS_DECLARED 
 
@@ -42,55 +68,10 @@ typedef struct YYLTYPE
 	int start_position;
 	int end_position;
 } YYLTYPE;
-}
-
-
-
-%{
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <assert.h>
-#include <malloc.h>
-#include "ast.h"
-#include "linked_list.h"
-#include "parser_error.h"
-#include "vector.h"
-
-/* Pass the argument to yyparse through to yylex. */
-#define YYPARSE_PARAM scanner
-
-#define YYINITDEPTH 10000
-#define YYMAXDEPTH 100000
-
-
-#define YYDEBUG 1
-#define YYERROR_VERBOSE
-
-struct ll_node *parse_result = NULL;
-struct ll_node *error_list = NULL;
-
-char *find_entity_name = NULL; 
-struct node_entity *found_entity = NULL;
-
-char* find_component_name;
-struct node_component *found_component;
-
-extern int yylineno;
-
-void yyerror(const char* str)
-{
-	//printf("Error near line %i!\n %s\n", yylineno, str);
-	struct parser_error *err = (struct parser_error*)create_error_message(yylineno-1, strdup(str)); 
-	error_list = ll_append_back(error_list, err);
-}
-
 
 
 # define YYLLOC_DEFAULT(Cur, Rhs, N)                      \
-     do                                                        \
+     do{                                                       \
        if (N)                                                  \
          {                                                     \
            (Cur).first_line   = YYRHSLOC(Rhs, 1).first_line;   \
@@ -109,25 +90,46 @@ void yyerror(const char* str)
            (Cur).start_position = YYRHSLOC(Rhs, 0).start_position;  \
            (Cur).end_position = YYRHSLOC(Rhs, 0).end_position; \
          }                                                     \
-     while (0)
-
-%}
-
-//%glr-parser
+     } while (0)
 
 
+#ifndef YY_TYPEDEF_YY_SCANNER_T
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void *yyscan_t;
+#endif
+}
 
-%error-verbose
-%locations
-%pure-parser
-%union {
-	int num;
-	char* str;
-	void *nPtr;
-	struct ast_node *node;
-	struct ll_node *ll_node;
-	struct vector_t* vec;
-	struct text_section *txt_sec;
+%code {
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <assert.h>
+#include <malloc.h>
+#include "ast.h"
+#include "linked_list.h"
+#include "parser_error.h"
+#include "vector.h"
+#include "scanner.h"
+
+
+struct ll_node *parse_result = NULL;
+struct ll_node *error_list = NULL;
+
+char *find_entity_name = NULL; 
+struct node_entity *found_entity = NULL;
+
+char* find_component_name;
+struct node_component *found_component;
+
+int yyerror(YYLTYPE * yylloc, yyscan_t scanner, const char *msg) 
+{
+	struct parser_error *err = (struct parser_error*)create_error_message(yyget_lineno(scanner), strdup(msg)); 
+	error_list = ll_append_back(error_list, err);
+	return 0;
+}
+
 }
 
 
@@ -359,51 +361,47 @@ selected_name:  prefix . suffix
 //    |	design_unit    {}
 //    ;
 
-start:
-	design_unit_list;
-
-design_unit_list:
-	/*nothing*/
-	|
-	design_unit design_unit_list
+start
+	: design_unit_list
 	;
 
-designator:
-	t_Identifier  {$$ = $1;}
-	|
-	t_StringLit   {$$ = $1;}
+design_unit_list
+	: /*nothing*/
+	| design_unit design_unit_list
 	;
 
-literal:
-	t_AbstractLit		    
-        {}
-    |	t_CharacterLit		    {}
-    |	physical_literal_no_default {}
-    |	t_NULL			    {}
-    ;
+designator
+	: t_Identifier  {$$ = $1;}
+	| t_StringLit   {$$ = $1;}
+	;
+
+literal
+	: t_AbstractLit                   {}
+	| t_CharacterLit              {}
+	| physical_literal_no_default {}
+	| t_NULL                      {}
+	;
 
 enumeration_literal:
 	t_CharacterLit	{}
     |	t_Identifier	{}
     ;
 
-physical_literal:
-	opt_t_AbstractLit t_Identifier
-        {}
-    ;
-
-opt_t_AbstractLit:  
-	/* nothing */	{}
-    |	t_AbstractLit
-    ;
-
-physical_literal_no_default:
-	t_AbstractLit t_Identifier
-	 {}
+physical_literal
+	: opt_t_AbstractLit t_Identifier {}
 	;
 
-idf_list:
-	  t_Identifier                  { $$ = ll_append_back(NULL, $1); }
+opt_t_AbstractLit
+	: /* nothing */ {}
+	| t_AbstractLit
+	;
+
+physical_literal_no_default
+	: t_AbstractLit t_Identifier {}
+	;
+
+idf_list
+	: t_Identifier                  { $$ = ll_append_back(NULL, $1); }
 	| idf_list t_Comma t_Identifier { $$ = ll_append_back($1, $3); }
 	;
 
@@ -411,14 +409,14 @@ idf_list:
 --  Desing Unit
 --------------------------------------------*/
 
-design_unit:
-	context_list lib_unit
+design_unit
+	: context_list lib_unit
     ;
 
-context_list:
-	/* nothing */  
-    |	context_list context_item
-    ;
+context_list
+	: /* nothing */  
+	| context_list context_item
+	;
 
 lib_unit
 	: entity_declaration        { parse_result = ll_append_back(parse_result, $1); }
@@ -428,23 +426,23 @@ lib_unit
 	| package_body              { parse_result = ll_append_back(parse_result, $1); }
 	;
 
-context_item:
-	  lib_clause	{}
-	| use_clause	{}
+context_item
+	: lib_clause    {}
+	| use_clause    {}
 	;
 
-lib_clause:
-	t_LIBRARY idf_list t_Semicolon	{}
-    ;
+lib_clause
+	: t_LIBRARY idf_list t_Semicolon	{}
+	;
 
-use_clause:
-	t_USE selected_name_list t_Semicolon	{}
-    ;
+use_clause
+	: t_USE selected_name_list t_Semicolon	{}
+	;
 
-selected_name_list:
-	selected_name			{}
-    |	selected_name_list t_Comma selected_name	{}
-    ;
+selected_name_list
+	: selected_name                             {}
+	| selected_name_list t_Comma selected_name  {}
+	;
 
 /*------------------------------------------
 --  Library Units
@@ -476,8 +474,8 @@ entity_declaration:
 		}
 	;
 
-opt_generic_and_port_clauses:
-	  /* nothing */
+opt_generic_and_port_clauses
+	: /* nothing */
 		{
 			vector **generic_port_buffer = (vector**)malloc(2*sizeof(vector*));
 			generic_port_buffer[0] = NULL;
@@ -518,8 +516,8 @@ opt_generic_and_port_clauses:
 	;
 
 
-generic_clause:
-	t_GENERIC t_LeftParen generic_interface_list t_RightParen t_Semicolon { $$ = $3; }
+generic_clause
+	: t_GENERIC t_LeftParen generic_interface_list t_RightParen t_Semicolon { $$ = $3; }
 	| t_GENERIC t_LeftParen t_RightParen t_Semicolon 
 		{ 
 			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
@@ -539,23 +537,23 @@ port_clause
 	;
 
 
-entity_decl_part:
-	/* nothing */
-    |	entity_decl_part entity_decltve_item
-    ;
+entity_decl_part
+	: /* nothing */
+	| entity_decl_part entity_decltve_item
+	;
 
-opt_entity_stats:
-	/* nothing */ 
-    |	t_BEGIN concurrent_stats
-    ;
+opt_entity_stats
+	: /* nothing */ 
+	| t_BEGIN concurrent_stats
+	;
 
-opt_entity_end:
-	  t_ENTITY opt_t_Identifier   { $$ = $2; }
+opt_entity_end
+	: t_ENTITY opt_t_Identifier   { $$ = $2; }
 	| opt_t_Identifier            { $$ = $1; }
 	;
 
-opt_t_Identifier:
-	  /* nothing */        { $$ = NULL; }
+opt_t_Identifier
+	: /* nothing */        { $$ = NULL; }
 	| t_Identifier         { $$ = $1; }
 	;
 
@@ -585,10 +583,9 @@ architecture_body:
 		}
 	;
 
-architecture_decl_part:
-	/* nothing */ { $$ = NULL; }
-	|	
-	architecture_decl_part block_decltve_item
+architecture_decl_part
+	: /* nothing */ { $$ = NULL; }
+	| architecture_decl_part block_decltve_item
 		{
 			if($2 != NULL){
 				$$ = ll_append_back($1, $2);
@@ -598,26 +595,25 @@ architecture_decl_part:
 		}
 	;
 
-opt_architecture_end:
-	  t_ARCHITECTURE opt_t_Identifier { $$ = $2; }
+opt_architecture_end
+	: t_ARCHITECTURE opt_t_Identifier { $$ = $2; }
 	| opt_t_Identifier                { $$ = $1; }
 	;
 
 
 configuration_declaration:
-    t_CONFIGURATION t_Identifier t_OF t_Identifier t_IS
-    {}
-	configuration_decl_part
-	block_config
-    t_END opt_configuration_end t_Semicolon
-    {};
+	t_CONFIGURATION t_Identifier t_OF t_Identifier t_IS
+		configuration_decl_part
+		block_config
+	t_END opt_configuration_end t_Semicolon
+	;
 
 configuration_decl_part:
     | configuration_decl_part config_decltve_item
     ;
 
-opt_configuration_end:
-	  t_CONFIGURATION opt_t_Identifier    {}
+opt_configuration_end
+	: t_CONFIGURATION opt_t_Identifier    {}
 	| opt_t_Identifier                    {}
 	;
 
@@ -642,10 +638,9 @@ package_declaration:
 		}
 	;
 
-package_decl_part:
-	/*Nothing*/ { $$ = NULL; }
-	|
-	package_decl_part package_decltve_item
+package_decl_part
+	: /*Nothing*/ { $$ = NULL; }
+	| package_decl_part package_decltve_item
 		{
 			if($2 != NULL){
 				$$ = ll_append_back($1, $2);
@@ -655,8 +650,8 @@ package_decl_part:
 		}
 	;
 
-opt_package_end:
-	  t_PACKAGE opt_t_Identifier  { $$ = $2; }
+opt_package_end
+	: t_PACKAGE opt_t_Identifier  { $$ = $2; }
 	| opt_t_Identifier            { $$ = $1; }
 	;
 
@@ -680,10 +675,9 @@ package_body:
 		}
 	;
 
-package_body_decl_part:
-	/* nothing */  { $$ = NULL; }
-	|
-	package_body_decl_part package_body_decltve_item
+package_body_decl_part
+	: /* nothing */  { $$ = NULL; }
+	| package_body_decl_part package_body_decltve_item
 		{
 			if($2 != NULL){
 				$$ = ll_append_back($1, $2);
@@ -693,8 +687,8 @@ package_body_decl_part:
 		}
 	;
 
-opt_package_body_end:
-	  t_PACKAGE t_BODY opt_t_Identifier  { $$ = $3; }
+opt_package_body_end
+	: t_PACKAGE t_BODY opt_t_Identifier  { $$ = $3; }
 	| opt_t_Identifier                   { $$ = $1; }
 	;
 
@@ -702,8 +696,8 @@ opt_package_body_end:
 --  Declarative Item
 --------------------------------------------*/
 
-common_decltve_item:
-	 type_decl
+common_decltve_item
+	: type_decl
 	| subtype_decl  
 	| constant_decl
 	| file_decl
@@ -712,17 +706,17 @@ common_decltve_item:
 	| use_clause
 	;
 
-entity_decltve_item:
-	common_decltve_item
-    |	subprog_body
-    |	attribute_decl
-    |	attribute_spec
-    |	disconnection_spec
-    |	signal_decl
-    ;
+entity_decltve_item
+	: common_decltve_item
+	| subprog_body
+	| attribute_decl
+	| attribute_spec
+	| disconnection_spec
+	| signal_decl
+	;
 
-block_decltve_item:
-	  common_decltve_item  { $$ = NULL; /*TODO*/ }
+block_decltve_item
+	: common_decltve_item  { $$ = NULL; /*TODO*/ }
 	| subprog_body         { $$ = $1; }
 	| comp_decl            { $$ = $1; }
 	| attribute_decl       { $$ = NULL; }
@@ -733,8 +727,8 @@ block_decltve_item:
 	| shared_variable_decl { $$ = NULL; }
 	;
 
-package_decltve_item:
-	  common_decltve_item  { $$ = NULL; }
+package_decltve_item
+	: common_decltve_item  { $$ = NULL; }
 	| comp_decl            { $$ = $1; }
 	| attribute_decl       { $$ = NULL; }
 	| attribute_spec       { $$ = NULL; }
@@ -743,64 +737,63 @@ package_decltve_item:
 	| shared_variable_decl { $$ = NULL; } /*TODO: check where to put shared_variable_decl, maybe but it everywhere and complain that it is not possible*/
 	;
 
-package_body_decltve_item:
-	  common_decltve_item  { $$ = NULL; }
+package_body_decltve_item
+	: common_decltve_item  { $$ = NULL; }
 	| subprog_body         { $$ = $1; }
 	;
 
-subprog_decltve_item:
-	  common_decltve_item {$$ = NULL;}
+subprog_decltve_item
+	: common_decltve_item {$$ = NULL;}
 	| subprog_body        {$$ = $1;}
 	| attribute_decl      {$$ = NULL;}
 	| attribute_spec      {$$ = NULL;}
 	| variable_decl       {$$ = NULL;}
 	;
 
-proc_decltve_item:
-	  common_decltve_item {$$ = NULL;}
+proc_decltve_item
+	: common_decltve_item {$$ = NULL;}
 	| subprog_body        {$$ = $1;}
 	| attribute_decl      {$$ = NULL;}
 	| attribute_spec      {$$ = NULL;}
 	| variable_decl       {$$ = NULL;}
 	;
 
-config_decltve_item:
-	attribute_spec
-    |	use_clause	{}
-    ;
+config_decltve_item
+	: attribute_spec
+	| use_clause	{}
+	;
 
 /*------------------------------------------
 --  Subprograms
 --------------------------------------------*/
 
-subprog_decl:
-	subprog_spec t_Semicolon {}
+subprog_decl
+	: subprog_spec t_Semicolon {}
 	;
 
-subprog_spec:
-	proc_or_func_spec { $$ = $1; }
+subprog_spec
+	: proc_or_func_spec { $$ = $1; }
 	;
 
-proc_or_func_spec:
-	t_PROCEDURE t_Identifier opt_interf_list
+proc_or_func_spec
+	: t_PROCEDURE t_Identifier opt_interf_list
 		{
 			$$ = (struct ast_node*)create_procedure_decl($2, @1.first_line);
 		}
-	|
-	pure_or_impure t_FUNCTION designator opt_interf_list t_RETURN subtype_indic
+	| pure_or_impure t_FUNCTION designator opt_interf_list t_RETURN subtype_indic
 		{
 			$$ = (struct ast_node*)create_function_decl($3, @2.first_line);
 		}
 	;
 
-pure_or_impure:
-	  /* nothing */   {}
+pure_or_impure
+	: /* nothing */   {}
 	| t_PURE          {}
 	| t_IMPURE        {}
 	;
 
-opt_interf_list:
-	  /* nothing */	{}
+opt_interf_list
+	: /* nothing */	{}
 	| interf_list
 	;
 
@@ -841,21 +834,20 @@ subprog_body:
 	;
 
 
-opt_function_or_procedure_t:
-	  /* nothing */  {}
+opt_function_or_procedure_t
+	: /* nothing */  {}
 	| t_PROCEDURE    {}
 	| t_FUNCTION     {}
 	;
 
-opt_designator:
-	  /* nothing */   { $$ = NULL; }
+opt_designator
+	: /* nothing */   { $$ = NULL; }
 	| designator      { $$ = $1;   }
 	;
 
-subprog_body_decl_part:
-	/* nothing */ { $$ = NULL; }
-	|
-	subprog_body_decl_part subprog_decltve_item
+subprog_body_decl_part
+	: /* nothing */ { $$ = NULL; }
+	| subprog_body_decl_part subprog_decltve_item
 		{
 			if($2 != NULL){
 				$$ = ll_append_back($1, $2);
@@ -972,30 +964,27 @@ generic_element:
 	;
 
 
-interf_list:
-	interf_list_1   { $$ = NULL; /*TODO free memory*/}
+interf_list
+	: interf_list_1   { $$ = NULL; /*TODO free memory*/}
 	;
 
-interf_list_1:
-	t_LeftParen interface_element opt_more_interface_elements t_RightParen
+interf_list_1
+	: t_LeftParen interface_element opt_more_interface_elements t_RightParen
 		{
 			$$ = ll_append_front($3, $2);
 		}
 	;
 
-opt_more_interface_elements:
-	/* nothing */     { $$ = NULL ; }
-	|
-	opt_more_interface_elements t_Semicolon interface_element
+opt_more_interface_elements
+	: /* nothing */     { $$ = NULL ; }
+	| opt_more_interface_elements t_Semicolon interface_element
 		{
 			$$ = ll_append_back($1, $3);
 		}
 	;
 
 /*
-Used in
- > entity declaration (port/generic)
- > component declaration (port/generic)
+Only used in
  > function/procedure parameters
 */
 interface_element:
@@ -1019,310 +1008,250 @@ interface_element:
 		}
 	;
 
-opt_t_BUS:
-	  /* nothing */	{}
+opt_t_BUS
+	: /* nothing */	{}
 	| t_BUS	        {}
 	;
 
-opt_mode:
-	  /* nothing */ { $$ = MODE_NOT_SPECIFIED; }
+opt_mode
+	: /* nothing */ { $$ = MODE_NOT_SPECIFIED; }
 	| mode          { $$ = $1; }
 	;
   
-opt_object_class:
-	  /* nothing */ { $$ = OC_NOT_SPECIFIED; }
+opt_object_class
+	: /* nothing */ { $$ = OC_NOT_SPECIFIED; }
 	| object_class  { $$ = $1;               }
 	;
   
-mode:
-	  t_IN       { $$ = MODE_IN; }
+mode
+	: t_IN       { $$ = MODE_IN; }
 	| t_OUT      { $$ = MODE_OUT; }
 	| t_INOUT    { $$ = MODE_INOUT; }
 	| t_BUFFER   { $$ = MODE_BUFFER; }
 	| t_LINKAGE  { $$ = MODE_LINKAGE; }
 	;
 
-association_list:
-	t_LeftParen association_elements association_list_1 t_RightParen {}
+association_list
+	: t_LeftParen association_elements association_list_1 t_RightParen {}
 	;
 
-named_association_list:
-	association_list {}
+named_association_list
+	: association_list {}
 	;
 
-association_list_1:
-	  /* nothing */	{}
+association_list_1
+	: /* nothing */  
 	| association_list_1 t_Comma association_elements
 	;
 
 
-gen_association_list:
-	t_LeftParen gen_association_elements gen_association_list_1 t_RightParen
-	{}
+gen_association_list
+	: t_LeftParen gen_association_elements gen_association_list_1 t_RightParen
     ;
 
-gen_association_list_1:
-	/* nothing */	{}
-    |	gen_association_list_1 t_Comma gen_association_elements
-	{}
-    ;
+gen_association_list_1
+	: /* nothing */
+	| gen_association_list_1 t_Comma gen_association_elements
+	;
 
-association_elements:
-	formal_part t_Arrow actual_part
-	{}
-    |	actual_part
-	{}
-    ;
+association_elements
+	: formal_part t_Arrow actual_part
+	| actual_part
+	;
 
-gen_association_elements:
-    	association_elements
-    |  	discrete_range1
-    ;
+gen_association_elements
+	: association_elements
+	| discrete_range1
+	;
 
-formal_part:
-	name                   {}
-    |	formal_part t_Bar name {} 
-    ;
+formal_part
+	: name                   {}
+	| formal_part t_Bar name {} 
+	;
 
-actual_part:
-	expr_or_attr
-    |	t_OPEN	{}
-    ;
+actual_part
+	: expr_or_attr
+	| t_OPEN 
+	;
 
 /*--------------------------------------------------
 --  Names and Expressions
 ----------------------------------------------------*/
 
-mark: 
-	  t_Identifier	{}
-	| selected_name	{}
+mark
+	: t_Identifier
+	| selected_name
 	;
 
-expr:
-	expr_or_attr
-	{}
-    ;
+expr
+	: expr_or_attr
+	;
 
-expr_or_attr:
-	  and_expression	    {}
-	| or_expression	    {}
-	| xor_expression	    {} 
-	| xnor_expression     {}
-	| relation_or_attr    {}
+expr_or_attr
+	: and_expression
+	| or_expression
+	| xor_expression 
+	| xnor_expression
+	| relation_or_attr
 	| relation t_NAND relation
 	| relation t_NOR relation
 	;
 
-relation:
-	relation_or_attr
+relation
+	: relation_or_attr
 	;
 
-and_expression:
-	relation t_AND relation
-	 {}
-    |	and_expression t_AND relation
-	 {}
-    ;
+and_expression
+	: relation t_AND relation
+	| and_expression t_AND relation
+	;
 
-or_expression:
-	relation t_OR relation
-	 {}
-    |	or_expression t_OR relation
-	 {}
-    ;
+or_expression
+	: relation t_OR relation
+	| or_expression t_OR relation
+	;
 
-xor_expression:
-	relation t_XOR relation
-	 {}
-    |	xor_expression t_XOR relation
-	 {}
-    ;
+xor_expression
+	: relation t_XOR relation
+	| xor_expression t_XOR relation
+	;
 
-xnor_expression:
-	relation t_XNOR relation
-	 {}
-    |	xnor_expression t_XNOR relation
-	 {}
-    ;
+xnor_expression
+	: relation t_XNOR relation
+	| xnor_expression t_XNOR relation
+	;
 
-relation_or_attr:
-        shift_expression_or_attr
-    |   shift_expression t_EQSym shift_expression
-        {}
-    |   shift_expression t_NESym shift_expression
-        {}
-    |   shift_expression t_LTSym shift_expression
-        {}
-    |   shift_expression t_LESym shift_expression
-        {}
-    |   shift_expression t_GTSym shift_expression
-        {}
-    |   shift_expression t_GESym shift_expression
-        {}
-    ;
+relation_or_attr
+	: shift_expression_or_attr
+	| shift_expression t_EQSym shift_expression
+	| shift_expression t_NESym shift_expression
+	| shift_expression t_LTSym shift_expression
+	| shift_expression t_LESym shift_expression
+	| shift_expression t_GTSym shift_expression
+	| shift_expression t_GESym shift_expression
+	;
 
-shift_expression:
-        shift_expression_or_attr
-        {}
-    ;
+shift_expression
+	: shift_expression_or_attr
+	;
 
-shift_expression_or_attr:
-	simple_expression_or_attr
-    |   simple_expression t_SLL simple_expression
-        {}
-    |   simple_expression t_SRL simple_expression
-        {}
-    |   simple_expression t_SLA simple_expression
-        {}
-    |   simple_expression t_SRA simple_expression
-        {}
-    |   simple_expression t_ROL simple_expression
-        {}
-    |   simple_expression t_ROR simple_expression
-        {}
-    ;
+shift_expression_or_attr
+	: simple_expression_or_attr
+	| simple_expression t_SLL simple_expression
+	| simple_expression t_SRL simple_expression
+	| simple_expression t_SLA simple_expression
+	| simple_expression t_SRA simple_expression
+	| simple_expression t_ROL simple_expression
+	| simple_expression t_ROR simple_expression
+	;
 
-simple_expression:
-        simple_expression_or_attr
-        {}
-    ;
+simple_expression
+	: simple_expression_or_attr
+	;
 
-simple_expression_or_attr:
-        signed_term_or_attr
-    |   simple_expression t_Plus term
-        {}
-    |   simple_expression t_Minus term
-        {}
-    |   simple_expression t_Ampersand term
-        {}
-    ;
+simple_expression_or_attr
+	: signed_term_or_attr
+	| simple_expression t_Plus term
+	| simple_expression t_Minus term
+	| simple_expression t_Ampersand term
+	;
 
-signed_term_or_attr:
-        term_or_attr
-    |	t_Plus term
-        {}
-    |	t_Minus term
-        {}
-    ; 
+signed_term_or_attr
+	: term_or_attr
+	| t_Plus term
+	| t_Minus term
+	; 
 
-term:
-        term_or_attr
-        {}
-    ;
+term
+	: term_or_attr
+	;
 
-term_or_attr:
-	factor_or_attr
-    |   term t_Star factor
-        {}
-    |   term t_Slash factor
-        {}
-    |   term t_MOD factor
-        {}
-    |   term t_REM factor
-        {}
-    ;
+term_or_attr
+	: factor_or_attr
+	| term t_Star factor
+	| term t_Slash factor
+	| term t_MOD factor
+	| term t_REM factor
+	;
 
-factor:
-        factor_or_attr
-        {}
-    ;
+factor
+	: factor_or_attr
+	;
 
-factor_or_attr:
-	primary_or_attr
-    |   primary t_DoubleStar primary
-        {}
-    |   t_ABS primary
-        {}
-    |   t_NOT primary
-        {}
-    ;
+factor_or_attr
+	: primary_or_attr
+	| primary t_DoubleStar primary
+	| t_ABS primary
+	| t_NOT primary
+	;
  
-primary:
-	primary_or_attr
-	{}
-    ;
+primary
+	: primary_or_attr
+	;
 
-primary_or_attr:
-	name		{}
-    |	literal		{}
-    |	aggregate	{}
-    |	qualified_expr	{}
-    |	allocator	{}
-    |	t_LeftParen expr t_RightParen {}
-    ;
-
-
-name:
-	mark
-    |	name2
-    ;
-
-name2:
-	t_StringLit	    {}
-    |	attribute_name	    {}
-    |	ifts_name
-    ;  
-
-selected_name:
-	name t_Dot suffix   {}
-    ;
-
-simple_selected_name:
-	simple_selected_name t_Dot t_Identifier  {}
-    |	t_Identifier			    {}
-    ;
-
-suffix:
-	designator	    {}
-    |	t_CharacterLit	    {}
-    |	t_ALL		    {}
-    ;
-
-ifts_name:
-	mark gen_association_list   
-	{}
-    |	name2 gen_association_list
-	{}
-    ;
+primary_or_attr
+	: name
+	| literal
+	| aggregate
+	| qualified_expr
+	| allocator
+	| t_LeftParen expr t_RightParen
+	;
 
 
-attribute_prefix:
-    mark t_Apostrophe {}
-    | name2 t_Apostrophe {}
-    ;
+name
+	: mark
+	| name2
+	;
+
+name2
+	: t_StringLit
+	| attribute_name
+	| ifts_name
+	;
+
+selected_name
+	: name t_Dot suffix   {}
+	;
+
+simple_selected_name
+	: simple_selected_name t_Dot t_Identifier
+	| t_Identifier
+	;
+
+suffix
+	: designator
+	| t_CharacterLit
+	| t_ALL
+	;
+
+ifts_name
+	: mark gen_association_list   
+	| name2 gen_association_list
+	;
+
+
+attribute_prefix
+	: mark t_Apostrophe {}
+	| name2 t_Apostrophe {}
+	;
 
 //special attributes range and reverse_range: e.g. e'range
-range_attribute_name:
-    attribute_prefix t_RANGE
-         {}
-    | attribute_prefix t_REVERSE_RANGE
-         {}
-    ;
+range_attribute_name
+	: attribute_prefix t_RANGE
+	| attribute_prefix t_REVERSE_RANGE
+	;
 
 
-attribute_name:
-    attribute_prefix t_Identifier
-	 {}
-    | range_attribute_name {}
-    ;
+attribute_name
+	: attribute_prefix t_Identifier
+	| range_attribute_name {}
+	;
 
-/*
-attribute_name:
-	mark t_Apostrophe t_Identifier
-	 {}
-    |	name2 t_Apostrophe t_Identifier
-	 {}
-    |	mark t_Apostrophe t_RANGE
-	 {}
-    |	name2 t_Apostrophe t_RANGE
-	 {}
-    ;
-*/
 
-range_attribute_name_with_param:
-	range_attribute_name opt_attribute_param
-	{}
-    ;
+range_attribute_name_with_param
+	: range_attribute_name opt_attribute_param
+	;
 
 
 /*
@@ -1332,150 +1261,128 @@ attribute_name_with_param:
     ;
 */
 
-opt_attribute_param:
-	/* empty */ {}
-    |	t_LeftParen expr t_RightParen
-	{}
-    ;
+opt_attribute_param
+	: /* empty */
+	| t_LeftParen expr t_RightParen
+	;
 
-aggregate:
-	rev_element_association_list2 t_RightParen
-	{
-		//printf("aggregate1\n");
-	}
-    |	t_LeftParen choices t_Arrow expr t_RightParen
-	{
-		//printf("aggregate2\n");
-	}
-    ;
+aggregate
+	: rev_element_association_list2 t_RightParen
+		{
+			//printf("aggregate1\n");
+		}
+	| t_LeftParen choices t_Arrow expr t_RightParen
+		{
+			//printf("aggregate2\n");
+		}
+	;
 
-rev_element_association_list2:
-	t_LeftParen element_association t_Comma element_association
-	{}
-    |	rev_element_association_list2 t_Comma element_association
-	{}
-    ;
+rev_element_association_list2
+	: t_LeftParen element_association t_Comma element_association
+	| rev_element_association_list2 t_Comma element_association
+	;
 
-qualified_expr:
-	mark t_Apostrophe t_LeftParen expr t_RightParen
-	 {}
-    |	mark t_Apostrophe aggregate
-	 {}
-    ;
+qualified_expr
+	: mark t_Apostrophe t_LeftParen expr t_RightParen
+	| mark t_Apostrophe aggregate
+	;
 
 
-allocator:
-	t_NEW mark mark opt_index_association_list
-	{}
-    |	t_NEW mark opt_index_association_list
-	{}
-    |	t_NEW qualified_expr
-	{}
-    ;
+allocator
+	: t_NEW mark mark opt_index_association_list
+	| t_NEW mark opt_index_association_list
+	| t_NEW qualified_expr
+	;
 
-opt_index_association_list:
-	/* nothing */		{}
-    |	gen_association_list	{}
-    ;
+opt_index_association_list
+	: /* nothing */
+	| gen_association_list
+	;
 
 /*--------------------------------------------------
 --  Element Association and Choices
 ----------------------------------------------------*/
 
-element_association:
-	choices t_Arrow expr
-	    {}
-    |	expr
-	    {}
-    ;
+element_association
+	: choices t_Arrow expr
+	| expr
+	;
 
-choices:
-	choice opt_more_choices
-	{}
-    ;
+choices
+	: choice opt_more_choices
+	;
 
-opt_more_choices:
-	/* nothing */	{}
-    |	opt_more_choices t_Bar choice
-	{}	    
-    ;
+opt_more_choices
+	: /* nothing */	{}
+	| opt_more_choices t_Bar choice
+	;
 
-choice:
-	expr_or_attr
-	{}
-    |	discrete_range1
-	{}
-    |	t_OTHERS
-	{}
-    ;
+choice
+	: expr_or_attr
+	| discrete_range1
+	| t_OTHERS
+	;
 
 /*--------------------------------------------------
 --  Type Declarations
 ----------------------------------------------------*/
 
-decl_Identifier:
-	t_Identifier {}
-    ;
+decl_Identifier
+	: t_Identifier {}
+	;
 
-type_decl:
-	t_TYPE decl_Identifier opt_type_def t_Semicolon
-	{}
-    ;
+type_decl
+	: t_TYPE decl_Identifier opt_type_def t_Semicolon
+	;
 
-opt_type_def:
-	/* nothing */		{}
-    |	t_IS type_definition	{}
-    ;
+opt_type_def
+	: /* nothing */		{}
+	| t_IS type_definition	{}
+	;
 
-type_definition:
-	  enumeration_type_definition     {}
-	| range_constraint		{}
+type_definition
+	: enumeration_type_definition     {}
+	| range_constraint                {}
 	| physical_type_definition        {}
 	| unconstrained_array_definition  {}
 	| constrained_array_definition    {}
 	| record_type_definition          {}
-	| access_type_definition          {}	
+	| access_type_definition          {}
 	| file_type_definition            {}
 	;
 
-enumeration_type_definition:
-	t_LeftParen enumeration_literal_decls t_RightParen
-	{}
-    ;
+enumeration_type_definition
+	: t_LeftParen enumeration_literal_decls t_RightParen
+	;
 
-enumeration_literal_decls:
-	enumeration_literal opt_more_enumeration_literals
-	{}
-    ;
+enumeration_literal_decls
+	: enumeration_literal opt_more_enumeration_literals
+	;
 
-opt_more_enumeration_literals:
-	/* nothing */			    {}
-    |	t_Comma enumeration_literal_decls   {}
-    ;
+opt_more_enumeration_literals
+	: /* nothing */
+	| t_Comma enumeration_literal_decls   {}
+	;
 
 physical_type_definition:
 	range_constraint t_UNITS
-	    primary_unit_decl
-	    secondary_unit_decls
+		primary_unit_decl
+		secondary_unit_decls
 	t_END t_UNITS
-	{}
-    ;
+	;
 
-secondary_unit_decls:
-	/* nothing */	{}
-    |	secondary_unit_decls secondary_unit_decl
-	{}
-    ;
+secondary_unit_decls
+	: /* nothing */ 
+	| secondary_unit_decls secondary_unit_decl
+	;
 
-primary_unit_decl:
-	t_Identifier t_Semicolon
-	{}
-    ;
+primary_unit_decl
+	: t_Identifier t_Semicolon
+	;
 
-secondary_unit_decl:
-	t_Identifier t_EQSym physical_literal t_Semicolon
-	{}
-    ;
+secondary_unit_decl
+	: t_Identifier t_EQSym physical_literal t_Semicolon
+	;
 
 unconstrained_array_definition:
 	t_ARRAY t_LeftParen index_subtype_defs t_RightParen t_OF subtype_indic
@@ -2596,10 +2503,10 @@ entity_aspect:
 	{}
     ;
 
-opt_arch_id:
-	/* nothing */				{}
-    |	t_LeftParen t_Identifier t_RightParen	{}
-    ;
+opt_arch_id
+	: /* nothing */
+	| t_LeftParen t_Identifier t_RightParen	{}
+	;
 
 
 %%

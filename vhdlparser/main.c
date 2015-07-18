@@ -29,7 +29,7 @@
 #include "vector.h"
 
 extern uint32_t yytextposition;
-extern FILE * yyin;
+//extern FILE * yyin;
 extern struct ll_node * parse_result; 
 extern struct ll_node * error_list;
  
@@ -40,10 +40,10 @@ extern struct node_component *found_component;
 
 void generate_output(struct ll_node *parse_result, int level);
 void print_errors(struct ll_node *error_list);
-void print_entity(struct node_entity *entity);
-void print_component(struct node_component *component);
-void print_generic_section(vector *generic_vector);
-void print_port_section(vector *port_vector);
+void print_entity(struct node_entity *entity, FILE * src_file);
+void print_component(struct node_component *component, FILE * src_file);
+void print_generic_section(vector *generic_vector, FILE * src_file);
+void print_port_section(vector *port_vector, FILE * src_file);
 
 /*not used anymore*/
 struct node_entity* find_entity(struct ll_node *parse_result, char *name);
@@ -60,11 +60,18 @@ LINE MESSAGE
 
 int main(int argc, char *argv[])
 {
+	yyscan_t myscanner;
+	FILE *infile; 
 
 	if (argc == 2)
 	{
-		yyin = fopen(argv[1], "r");
-		yyparse ();
+		infile = fopen(argv[1], "r");
+
+		yylex_init_extra(0, &myscanner);
+		yyset_in(infile, myscanner);
+		yyparse(myscanner);
+		yylex_destroy(myscanner);
+
 
 		printf("[code_hierarchy]\n");
 		generate_output(parse_result, 0);
@@ -76,9 +83,14 @@ int main(int argc, char *argv[])
 	{
 		if (!strcmp("--entity", argv[1]))
 		{
-			yyin = fopen(argv[3], "r");
+			infile = fopen(argv[3], "r");
 			find_entity_name = argv[2];
-			yyparse ();
+			
+			yylex_init_extra(0, &myscanner);
+			yyset_in(infile, myscanner);
+			yyparse(myscanner);
+			yylex_destroy(myscanner);
+			
 			
 			if (found_entity == NULL) // entity not found
 			{
@@ -89,14 +101,19 @@ int main(int argc, char *argv[])
 				error_list = ll_append_back(error_list, err);
 				print_errors(error_list);
 			} else {
-				print_entity(found_entity);
+				print_entity(found_entity, infile);
 			}
 		}
 		else if(!strcmp("--component", argv[1]))
 		{
-			yyin = fopen(argv[3], "r");
+			infile = fopen(argv[3], "r");
 			find_component_name = argv[2];
-			yyparse ();
+			
+			yylex_init_extra(0, &myscanner);
+			yyset_in(infile, myscanner);
+			yyparse(myscanner);
+			yylex_destroy(myscanner);
+			
 			if (found_component == NULL) // entity not found
 			{
 				struct parser_error_1s *err = malloc(sizeof(struct parser_error_1s));
@@ -106,7 +123,7 @@ int main(int argc, char *argv[])
 				error_list = ll_append_back(error_list, err);
 				print_errors(error_list);
 			} else {
-				print_component(found_component);
+				print_component(found_component, infile);
 			}
 		}
 		/*else if(!strcmp("--vectest", argv[1]))
@@ -142,20 +159,20 @@ int main(int argc, char *argv[])
 }
 
 
-void print_component(struct node_component *component)
+void print_component(struct node_component *component, FILE * src_file)
 {
-	print_generic_section(component->generic_section);
-	print_port_section(component->port_section);
+	print_generic_section(component->generic_section, src_file);
+	print_port_section(component->port_section, src_file);
 }
 
-void print_entity(struct node_entity *entity)
+void print_entity(struct node_entity *entity, FILE * src_file)
 {
-	print_generic_section(entity->generic_section);
-	print_port_section(entity->port_section);
+	print_generic_section(entity->generic_section, src_file);
+	print_port_section(entity->port_section, src_file);
 }
 
 
-void print_generic_section(vector *generic_vector)
+void print_generic_section(vector *generic_vector, FILE * src_file)
 {
 	printf("[generic]\n");
 	
@@ -169,12 +186,12 @@ void print_generic_section(vector *generic_vector)
 		struct node_generic * generic = (struct node_generic*)vector_get(generic_vector, i); 
 		printf("%s\t", generic->name);
 			
-		print_text_section(yyin, &generic->data_type);
+		print_text_section(src_file, &generic->data_type);
 			
 		if(generic->init_value.end_position != 0)
 		{
 			printf("\t");
-			print_text_section(yyin, &generic->init_value);
+			print_text_section(src_file, &generic->init_value);
 		}
 			
 		printf("\n");
@@ -182,7 +199,7 @@ void print_generic_section(vector *generic_vector)
 }
 
 
-void print_port_section(vector *port_vector)
+void print_port_section(vector *port_vector, FILE * src_file)
 {
 	printf("[port]\n");
 	
@@ -196,12 +213,12 @@ void print_port_section(vector *port_vector)
 		struct node_port * port = (struct node_port*)vector_get(port_vector, i); 
 		printf("%s\t%x\t", port->name, port->mode);
 			
-		print_text_section(yyin, &port->data_type);
+		print_text_section(src_file, &port->data_type);
 			
 		if(port->init_value.end_position != 0)
 		{
 			printf("\t");
-			print_text_section(yyin, &port->init_value);
+			print_text_section(src_file, &port->init_value);
 		}
 			
 		printf("\n");
@@ -374,7 +391,7 @@ void print_errors(struct ll_node *error_list)
 				printf("Label missmatch (%s vs. %s)", ((struct parser_error_2s*)(err))->s0, ((struct parser_error_2s*)(err))->s1);
 				break;
 			case ERROR_ILLEGAL_SYMBOL:
-				printf("Error: illigal symbol (%c)", ((struct parser_error_1c*)err)->c0);
+				printf("Illigal symbol (%c)", ((struct parser_error_1c*)err)->c0);
 				break;
 			case ERROR_UNDERSCORE:
 				printf("Indenifiers may not start or end with '_'");
