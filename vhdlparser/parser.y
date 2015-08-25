@@ -1,5 +1,5 @@
 /*
-   (C) 2014 Florian Huemer
+   (C) 2015 Florian Huemer
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 %define api.pure full
 %lex-param   { yyscan_t scanner }
 %parse-param { yyscan_t scanner }
+%parse-param { vhdl_parser_result *result }
 
 %{
 //#define YYDEBUG 1
@@ -46,16 +47,15 @@
 %union {
 	int num;
 	char* str;
-	void *nPtr;
+	void* nPtr;
 	struct ast_node *node;
-	struct ll_node *ll_node;
 	struct vector_t* vec;
 	struct text_section *txt_sec;
 }
 
 %code requires{
 
-
+#include "vhdlparser.h"
 
 #define YYLTYPE_IS_DECLARED 
 
@@ -112,26 +112,27 @@ typedef void *yyscan_t;
 #include "parser_error.h"
 #include "vector.h"
 #include "scanner.h"
+#include "generic_container.h"
 
-
-struct ll_node *parse_result = NULL;
-struct ll_node *error_list = NULL;
-
-char *find_entity_name = NULL; 
-struct node_entity *found_entity = NULL;
-
-char* find_component_name;
-struct node_component *found_component;
-
-int yyerror(YYLTYPE * yylloc, yyscan_t scanner, const char *msg) 
+int yyerror(YYLTYPE * yylloc, yyscan_t scanner, vhdl_parser_result *result, const char *msg) 
 {
 	struct parser_error *err = (struct parser_error*)create_error_message(yyget_lineno(scanner), strdup(msg)); 
-	error_list = ll_append_back(error_list, err);
+	agc_append_back(result->errors, err);
 	return 0;
 }
 
-}
+#define LABEL_CHECK(l1,l2,line) do { \
+	if (l1 != NULL) { \
+		if (strcmp(l1, l2)) { \
+			struct parser_error_2s *err; \
+			err = create_error_label_missmatch(line, l2, l1); \
+			agc_append_back(result->errors, err); \
+		} \
+	} \
+}while(0)
+	
 
+}
 
 %token t_ACCESS            "[access]"
 %token t_AFTER             "[after]"
@@ -305,26 +306,25 @@ int yyerror(YYLTYPE * yylloc, yyscan_t scanner, const char *msg)
 %type <node> proc_decltve_item
 %type <node> block_stat
 %type <node> package_decltve_item
-%type <ll_node> package_body_decl_part 
-%type <ll_node> package_decl_part
-%type <ll_node> block_decl_part
-%type <ll_node> architecture_decl_part
-%type <ll_node> subprog_body_decl_part
-%type <ll_node> opt_concurrent_stats
-%type <ll_node> concurrent_stats
-%type <ll_node> proc_decl_part
+%type <nPtr> package_body_decl_part 
+%type <nPtr> package_decl_part
+%type <nPtr> block_decl_part
+%type <nPtr> architecture_decl_part
+%type <nPtr> subprog_body_decl_part
+%type <nPtr> opt_concurrent_stats
+%type <nPtr> concurrent_stats
+%type <nPtr> proc_decl_part
 %type <node> generate_stat
 %type <node> generation_scheme
 %type <node> if_scheme
 %type <node> for_scheme
 %type <node> comp_inst_stat
 %type <node> package_body
-%type <ll_node> generate_declarative_items_block
-%type <ll_node> generate_declarative_items
+%type <nPtr> generate_declarative_items
 
 %type <nPtr> opt_generic_and_port_clauses
 
-%type <ll_node> idf_list
+%type <nPtr> idf_list
 
 %type <vec> port_clause
 %type <vec> port_interface_list
@@ -334,9 +334,9 @@ int yyerror(YYLTYPE * yylloc, yyscan_t scanner, const char *msg)
 %type <vec> generic_interface_list
 %type <vec> generic_element
 
-%type <ll_node> opt_more_interface_elements
-%type <ll_node> interf_list_1
-%type <ll_node> interf_list
+%type <nPtr> opt_more_interface_elements
+%type <nPtr> interf_list_1
+%type <nPtr> interf_list
 
 %type <num> object_class
 %type <num> opt_object_class
@@ -382,10 +382,10 @@ literal
 	| t_NULL                      {}
 	;
 
-enumeration_literal:
-	t_CharacterLit	{}
-    |	t_Identifier	{}
-    ;
+enumeration_literal
+	: t_CharacterLit   {}
+	| t_Identifier     {}
+	;
 
 physical_literal
 	: opt_t_AbstractLit t_Identifier {}
@@ -401,8 +401,18 @@ physical_literal_no_default
 	;
 
 idf_list
-	: t_Identifier                  { $$ = ll_append_back(NULL, $1); }
-	| idf_list t_Comma t_Identifier { $$ = ll_append_back($1, $3); }
+	: t_Identifier
+		{
+			$$ = agc_new();
+			agc_append_back($$, $1); 
+			/*$$ = ll_append_back(NULL, $1);*/
+			}
+	| idf_list t_Comma t_Identifier 
+		{ 
+			$$ = $1;
+			agc_append_back($1, $3);
+			/*$$ = ll_append_back($1, $3);*/ 
+		}
 	;
 
 /*------------------------------------------
@@ -411,7 +421,7 @@ idf_list
 
 design_unit
 	: context_list lib_unit
-    ;
+	;
 
 context_list
 	: /* nothing */  
@@ -419,11 +429,11 @@ context_list
 	;
 
 lib_unit
-	: entity_declaration        { parse_result = ll_append_back(parse_result, $1); }
+	: entity_declaration        { agc_append_back(result->ast, $1); }
 	| configuration_declaration
-	| package_declaration       { parse_result = ll_append_back(parse_result, $1); }
-	| architecture_body         { parse_result = ll_append_back(parse_result, $1); }
-	| package_body              { parse_result = ll_append_back(parse_result, $1); }
+	| package_declaration       { agc_append_back(result->ast, $1); }
+	| architecture_body         { agc_append_back(result->ast, $1); }
+	| package_body              { agc_append_back(result->ast, $1); }
 	;
 
 context_item
@@ -432,7 +442,7 @@ context_item
 	;
 
 lib_clause
-	: t_LIBRARY idf_list t_Semicolon	{}
+	: t_LIBRARY idf_list t_Semicolon        {}
 	;
 
 use_clause
@@ -459,18 +469,7 @@ entity_declaration:
 			entity->generic_section = ((vector**)$4)[0];
 			entity->port_section = ((vector**)$4)[1];
 			$$ = (struct ast_node*)entity;
-			if ($8 != NULL)
-			{
-				if (strcmp($8, $2))
-				{
-					struct parser_error_2s *err = create_error_label_missmatch(@2.first_line, $2, $8);
-					error_list = ll_append_back(error_list, err);
-				}
-			}
-			if (find_entity_name != NULL && !strcmp(entity->name, find_entity_name))
-			{
-				found_entity = entity;
-			}
+			LABEL_CHECK($8, $2, @2.first_line);
 		}
 	;
 
@@ -511,7 +510,7 @@ opt_generic_and_port_clauses
 			$$ = generic_port_buffer;
 			/*generate error message, because port and generic clause are in wrong order*/
 			struct parser_error *err = create_error_id(@1.first_line, ERROR_PORT_GENERIC_ORDER);
-			error_list = ll_append_back(error_list, err);
+			agc_append_back(result->errors, err);
 		}
 	;
 
@@ -521,7 +520,7 @@ generic_clause
 	| t_GENERIC t_LeftParen t_RightParen t_Semicolon 
 		{ 
 			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
-			error_list = ll_append_back(error_list, err);
+			agc_append_back(result->errors, err);
 			$$ = NULL;
 		}
 	;
@@ -531,7 +530,7 @@ port_clause
 	| t_PORT t_LeftParen t_RightParen t_Semicolon 
 		{ 
 			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
-			error_list = ll_append_back(error_list, err);
+			agc_append_back(result->errors, err);
 			$$ = NULL;
 		}
 	;
@@ -571,27 +570,18 @@ architecture_body:
 			arch->declaration_section = $6;
 			arch->concurrent_statements = $8;
 			$$ = (struct ast_node*)arch;
-			
-			if ($10 != NULL)
-			{
-				if (strcmp($10, $2))
-				{
-					struct parser_error_2s *err = create_error_label_missmatch(line_no, $2, $10);
-					error_list = ll_append_back(error_list, err);
-				}
-			}
+			LABEL_CHECK($10, $2, @2.first_line);
 		}
 	;
 
 architecture_decl_part
-	: /* nothing */ { $$ = NULL; }
+	: /* nothing */ { $$ = agc_new(); }
 	| architecture_decl_part block_decltve_item
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) { 
+				agc_append_back($1,$2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -608,9 +598,10 @@ configuration_declaration:
 	t_END opt_configuration_end t_Semicolon
 	;
 
-configuration_decl_part:
-    | configuration_decl_part config_decltve_item
-    ;
+configuration_decl_part
+	: /*empty*/
+	| configuration_decl_part config_decltve_item
+	;
 
 opt_configuration_end
 	: t_CONFIGURATION opt_t_Identifier    {}
@@ -624,29 +615,20 @@ package_declaration:
 	t_END opt_package_end t_Semicolon
 		{
 			struct node_package_decl* pkg = create_package_decl($2, @1.first_line);
-			pkg->declarations = $4;
+			pkg->declaration_section = $4;
 			$$ = (struct ast_node*) pkg;
-			
-			if ($6 != NULL)
-			{
-				if (strcmp($6, $2))
-				{
-					struct parser_error_2s *err = create_error_label_missmatch(@2.first_line, $2, $6);
-					error_list = ll_append_back(error_list, err);
-				}
-			}
+			LABEL_CHECK($6, $2, @2.first_line);
 		}
 	;
 
 package_decl_part
-	: /*Nothing*/ { $$ = NULL; }
+	: /*Nothing*/ { $$ = agc_new(); }
 	| package_decl_part package_decltve_item
 		{
 			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -661,29 +643,20 @@ package_body:
 	t_END opt_package_body_end t_Semicolon
 		{
 			struct node_package_body* pkg = create_package_body($3, @1.first_line);
-			pkg->declarations = $5;
+			pkg->declaration_section = $5;
 			$$ = (struct ast_node*) pkg;
-			
-			if ($7 != NULL)
-			{
-				if (strcmp($7, $3))
-				{
-					struct parser_error_2s *err = create_error_label_missmatch(@3.first_line, $3, $7);
-					error_list = ll_append_back(error_list, err);
-				}
-			}
+			LABEL_CHECK($7, $3, @3.first_line);
 		}
 	;
 
 package_body_decl_part
-	: /* nothing */  { $$ = NULL; }
+	: /* nothing */  { $$ = agc_new(); }
 	| package_body_decl_part package_body_decltve_item
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) {
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -804,13 +777,14 @@ subprog_body:
 		seq_stats
 	t_END opt_function_or_procedure_t opt_designator t_Semicolon
 		{
+			
 			if ($8 != NULL)
 			{
 				struct ast_labeled_node* node = (struct ast_labeled_node*)$1;
 				if (strcmp(node->name, $8))
 				{
-					struct parser_error_2s* error = create_error_label_missmatch(node->line, node->name, $8);
-					error_list = ll_append_back(error_list, error);
+					struct parser_error_2s* err = create_error_label_missmatch(node->line, node->name, $8);
+					agc_append_back(result->errors, err);
 				}
 			}
 		
@@ -846,14 +820,13 @@ opt_designator
 	;
 
 subprog_body_decl_part
-	: /* nothing */ { $$ = NULL; }
+	: /* nothing */ { $$ = agc_new(); }
 	| subprog_body_decl_part subprog_decltve_item
 		{
 			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -877,16 +850,16 @@ port_interface_list
 port_element:
 	opt_object_class idf_list t_Colon opt_mode subtype_indic opt_t_BUS opt_var_init
 		{
-			vector* vec = vector_new(ll_length($2));
+			vector* vec = vector_new(agc_count($2));
 			
-			struct ll_node *temp = $2;
-			while(temp != NULL) 
-			{
-				char * name = (char*)temp->data;
+			void* iter;
+			agc_iterate_begin($2, iter) {
+				char * name = (char*)iter;
 				struct node_port *port = create_port(name, @2.first_line);
 				
-				if( $1 != OC_NOT_SPECIFIED && $1 != OC_SIGNAL) {
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(port->line, ERROR_PORT_OBJECT_CLASS));
+				if ($1 != OC_NOT_SPECIFIED && $1 != OC_SIGNAL) {
+					struct parser_error* err = create_error_id(port->line, ERROR_PORT_OBJECT_CLASS);
+					agc_append_back(result->errors, err);
 				} 
 				if($4 == MODE_NOT_SPECIFIED){
 					port->mode = MODE_IN;
@@ -905,10 +878,10 @@ port_element:
 					port->init_value.end_position = $7->end_position;
 				}
 				vector_add(vec, port);
-				temp = temp->next;
-			}
+			} agc_iterate_end($2, iter);
 			
-			//free($2); //free ident list  //TODO
+			
+			agc_free($2); //free identifiers container
 			
 			$$ = vec;
 		}
@@ -929,19 +902,20 @@ generic_interface_list
 generic_element:
 	opt_object_class idf_list t_Colon opt_mode subtype_indic opt_t_BUS opt_var_init
 		{
-			vector* vec = vector_new(ll_length($2));
+			vector* vec = vector_new(agc_count($2));
 			
-			struct ll_node *temp = $2;
-			while(temp != NULL) 
-			{
-				char * name = (char*)temp->data;
+			void* iter;
+			agc_iterate_begin($2, iter) {
+				char * name = (char*)iter;
 				struct node_generic *generic = create_generic(name, @2.first_line);
 				
 				if( $1 != OC_NOT_SPECIFIED && $1 != OC_CONSTANT) {
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(generic->line, ERROR_GENERIC_OBJECT_CLASS));
+					struct parser_error* err = create_error_id(generic->line, ERROR_GENERIC_OBJECT_CLASS);
+					agc_append_back(result->errors, err);
 				} 
 				if($4 != MODE_NOT_SPECIFIED && $4 != MODE_IN){
-					error_list = ll_append_back(error_list, (struct parser_error*)create_error_id(generic->line, ERROR_GENERIC_MODE));
+					struct parser_error* err = create_error_id(generic->line, ERROR_GENERIC_MODE);
+					agc_append_back(result->errors, err);
 				}
 				
 				generic->data_type.start_position = @5.start_position;
@@ -955,10 +929,9 @@ generic_element:
 					generic->init_value.end_position = $7->end_position;
 				}
 				vector_add(vec, generic);
-				temp = temp->next;
-			}
-			
-			//free($2); //free ident list //TODO
+			} agc_iterate_end($2, iter);
+
+			agc_free($2); //free identifiers container
 			$$ = vec;
 		}
 	;
@@ -971,7 +944,7 @@ interf_list
 interf_list_1
 	: t_LeftParen interface_element opt_more_interface_elements t_RightParen
 		{
-			$$ = ll_append_front($3, $2);
+			//$$ = ll_append_front($3, $2);
 		}
 	;
 
@@ -979,7 +952,7 @@ opt_more_interface_elements
 	: /* nothing */     { $$ = NULL ; }
 	| opt_more_interface_elements t_Semicolon interface_element
 		{
-			$$ = ll_append_back($1, $3);
+			//$$ = ll_append_back($1, $3);
 		}
 	;
 
@@ -999,12 +972,6 @@ interface_element:
 			interface_node->data_type->end_position = @5.end_position;
 			interface_node->init_value = $7;
 			$$ = (struct ast_node*)interface_node;
-			/*struct ll_node *temp = $2;
-			while (temp != NULL)
-			{
-				printf("%s\n", (char*)temp->data);
-				temp = temp->next;
-			}*/
 		}
 	;
 
@@ -1737,27 +1704,24 @@ while_scheme:
 --  Concurrent Statements
 ----------------------------------------------------*/
 
-concurrent_stats:
-	opt_concurrent_stats concurrent_stat
+concurrent_stats
+	: opt_concurrent_stats concurrent_stat
 		{
 			if ($2 != NULL) {
-				$$ = ll_append_back($1, $2); 
-			}else{
-				$$ = NULL;
+				agc_append_back($1, $2); 
 			}
+			$$ = $1;
 		}
 	;
 
-opt_concurrent_stats:
-	/* nothing */ { $$ = NULL; }
-	|
-	opt_concurrent_stats concurrent_stat
+opt_concurrent_stats
+	: /* nothing */ { $$ = agc_new(); }
+	| opt_concurrent_stats concurrent_stat
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) {
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -1782,7 +1746,7 @@ concurrent_stat_without_label:
 					if (labeled_node->name != NULL)
 					{
 						struct parser_error_2s* err = create_error_label_missmatch(labeled_node->line, NULL, labeled_node->name);
-						error_list = ll_append_back(error_list, err);
+						agc_append_back(result->errors, err);
 					}
 				}
 			}
@@ -1809,7 +1773,7 @@ concurrent_stat_with_label:
 						if (strcmp($1,labeled_node->name))
 						{
 							struct parser_error_2s* err = create_error_label_missmatch(labeled_node->line, strdup($1), labeled_node->name);
-							error_list = ll_append_back(error_list, err);
+							agc_append_back(result->errors, err);
 						}
 					}
 				}
@@ -1873,16 +1837,14 @@ block_stat:
 		}
 	;
 
-block_decl_part:
-	/* nothing */    { $$=NULL; }
-	|
-	block_decl_part block_decltve_item
+block_decl_part
+	: /* nothing */    { $$ = agc_new(); }
+	| block_decl_part block_decltve_item
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) {
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -2072,39 +2034,33 @@ sel_wavefrms_1:
 
 generate_stat:
 	generation_scheme t_GENERATE
-		generate_declarative_items_block
+		generate_declarative_items
+	t_BEGIN
 		concurrent_stats
 	t_END t_GENERATE opt_t_Identifier t_Semicolon
 		{
+			//TODO
 			struct node_generate *gen = (struct node_generate*)$1;
 			gen->declaration_section = $3;
-			gen->concurrent_statements = $4;
-			gen->name = $7;
+			gen->concurrent_statements = $5;
+			gen->name = $8;
 			$$ = (struct ast_node*)gen;
 		}
 	;
 
-generate_declarative_items_block:
-	/* nothing */                       { $$ = NULL; }
-	|
-	generate_declarative_items t_BEGIN  { $$ = $1; }
-	;
-
-generate_declarative_items:
-	/* nothing */                       { $$ = NULL; }
-	|
-	generate_declarative_items generate_declarative_item
+generate_declarative_items
+	: /* nothing */  { $$ = agc_new(); }
+	| generate_declarative_items generate_declarative_item
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) {
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
-generate_declarative_item:
-	  common_decltve_item     { $$ = NULL; }
+generate_declarative_item
+	: common_decltve_item     { $$ = NULL; }
 	| subprog_body            { $$ = $1; }
 	| comp_decl               { $$ = $1; }
 	| attribute_decl          { $$ = NULL; }
@@ -2146,16 +2102,14 @@ opt_t_IS:
 	t_IS
 	;
 
-proc_decl_part:
-	/* nothing */ { $$ = NULL; }
-	|
-	proc_decl_part proc_decltve_item
+proc_decl_part
+	: /* nothing */ { $$ = agc_new(); }
+	| proc_decl_part proc_decltve_item
 		{
-			if($2 != NULL){
-				$$ = ll_append_back($1, $2);
-			}else{
-				$$ = $1;
+			if ($2 != NULL) {
+				agc_append_back($1, $2);
 			}
+			$$ = $1;
 		}
 	;
 
@@ -2393,28 +2347,18 @@ comp_decl:
 			component->generic_section = ((vector**)$4)[0];
 			component->port_section = ((vector**)$4)[1];
 			$$ = (struct ast_node*)component;
-			if ($7 != NULL)
-			{
-				if (strcmp($2,$7) )
-				{
-					struct parser_error *err = (struct parser_error*)create_error_label_missmatch(@1.first_line, $2, $7);
-					error_list = ll_append_back(error_list, err);
-				}
-			}
-			if (find_component_name != NULL && !strcmp(component->name, find_component_name))
-			{
-				found_component = component;
-			}
+			LABEL_CHECK($7, $2, @1.first_line);
 		}
 	;
 
-block_config:
-	t_FOR name {}
-    	    use_clauses
-    	    config_items
-    	t_END t_FOR t_Semicolon
-    	{}
-    ;
+block_config
+	:
+	t_FOR name
+		use_clauses
+		config_items
+	t_END t_FOR t_Semicolon
+	{}
+	;
 
 config_items:
  	/* nothing */		    {}

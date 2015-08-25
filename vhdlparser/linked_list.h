@@ -1,5 +1,5 @@
 /*
-   (C) 2014 Florian Huemer
+   (C) 2015 Florian Huemer
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,24 +15,43 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#ifndef _LINKED_LIST_H_
-#define _LINKED_LIST_H_
+#ifndef _LINKED_LIST_2_H_
+#define _LINKED_LIST_2_H_
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <malloc.h>
 
-struct ll_node
-{
-	void *data;
-	struct ll_node *next;
-};
 
-struct ll_node * ll_create_node(void* data);
-struct ll_node * ll_append_front(struct ll_node *list, void* data);
-struct ll_node * ll_append_back(struct ll_node *list, void *data);
-int ll_length(struct ll_node *list);
+typedef struct ll_node ll_node;
+
+typedef struct ll_node
+{
+	void* data;
+	ll_node* next;
+	ll_node* prev;
+} ll_node;
+
+typedef struct 
+{
+	ll_node* head;
+	ll_node* tail;
+} linked_list;
+
+
+linked_list * ll_new();
+void ll_free(linked_list* list);
+void ll_append_front(linked_list *list, void* data);
+void ll_append_back(linked_list *list, void *data);
+int ll_count(linked_list *list);
+
+void* ll_get(linked_list *list, int index);
+int ll_set(linked_list *list, int index, void *data);
+
+void ll_reverse_order(linked_list* list);
+
+linked_list * ll_merge(linked_list* list1, linked_list* list2);
 
 #endif
 

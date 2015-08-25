@@ -1,5 +1,5 @@
 /*
-   (C) 2014 Florian Huemer
+   (C) 2015 Florian Huemer
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ struct node_package_decl * create_package_decl(char *name, int line)
 	pkg_decl->type = TYPE_PACKAGE_DECLARATION;
 	pkg_decl->name = name;
 	pkg_decl->line = line;
-	pkg_decl->declarations = NULL;
+	pkg_decl->declaration_section = NULL;
 	return pkg_decl;
 }
 
@@ -164,7 +164,7 @@ struct node_package_body * create_package_body(char *name, int line)
 	pkg_decl->type = TYPE_PACKAGE_BODY;
 	pkg_decl->name = name;
 	pkg_decl->line = line;
-	pkg_decl->declarations = NULL;
+	pkg_decl->declaration_section = NULL;
 	return pkg_decl;
 }
 

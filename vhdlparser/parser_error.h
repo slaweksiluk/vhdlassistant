@@ -1,5 +1,5 @@
 /*
-   (C) 2014 Florian Huemer
+   (C) 2015 Florian Huemer
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

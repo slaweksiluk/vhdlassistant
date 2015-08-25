@@ -1,5 +1,5 @@
 /*
-   (C) 2014 Florian Huemer
+   (C) 2015 Florian Huemer
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,15 @@
 #define _AST_H_
 
 #include <stdint.h>
+#include "generic_container.h"
+
+#define AST_GENERIC_CONTAINER GC_LIST
+#define agc_new()                 gc_new(AST_GENERIC_CONTAINER)
+#define agc_free(c)               gc_free(c, AST_GENERIC_CONTAINER)
+#define agc_append_back(c,i)      gc_append_back(c, i, AST_GENERIC_CONTAINER)
+#define agc_count(c)              gc_count(c, AST_GENERIC_CONTAINER)
+#define agc_iterate_begin(c,iter) gc_iterate_begin(c, iter, AST_GENERIC_CONTAINER)
+#define agc_iterate_end(c,iter)   gc_iterate_end(c, iter, AST_GENERIC_CONTAINER)
 
 enum node_type 
 {
@@ -40,6 +49,7 @@ enum node_type
 	TYPE_PORT,
 	TYPE_GENERIC
 };
+
 
 enum mode
 {
@@ -71,126 +81,126 @@ struct node_architecture
 {
 	enum node_type type;
 	int line;
-	char * name;
-	char * entity_name;
-	void * declaration_section;
-	void * concurrent_statements;
+	char* name;
+	void* declaration_section;
+	void* concurrent_statements;
+	char* entity_name;
 };
 
 struct node_block
 {
 	enum node_type type;
 	int line;
-	char * name;
-	char * entity_name;
-	void * declaration_section;
-	void * concurrent_statements;
+	char* name;
+	void* declaration_section;
+	void* concurrent_statements;
+	char* entity_name;
 };
 
 struct node_generate
 {	
 	enum node_type type;
 	int line;
-	char * name;
-	void * declaration_section;
-	void * concurrent_statements;
+	char* name;
+	void* declaration_section;
+	void* concurrent_statements;
 };
 
 struct node_if_generate
 {	
 	enum node_type type;
 	int line;
-	char * name;
-	void * declaration_section;
-	void * concurrent_statements;
+	char* name;
+	void* declaration_section;
+	void* concurrent_statements;
 };
 
 struct node_for_generate
 {	
 	enum node_type type;
 	int line;
-	char * name;
-	void * declaration_section;
-	void * concurrent_statements;
+	char* name;
+	void* declaration_section;
+	void* concurrent_statements;
 };
 
 struct node_entity
 {
 	enum node_type type;
 	int line;
-	char * name;
-	void * generic_section;
-	void * port_section;
+	char* name;
+	void* generic_section;
+	void* port_section;
 };
 
 struct node_component
 {
 	enum node_type type;
 	int line;
-	char * name;
-	void * generic_section;
-	void * port_section;
+	char* name;
+	void* generic_section;
+	void* port_section;
 };
 
 struct node_procedure_decl
 {
 	enum node_type type;
 	int line;
-	char * name;
+	char* name;
 };
 
 struct node_procedure_body
 {
 	enum node_type type;
 	int line;
-	char * name;
-	void * declaration_section;
+	char* name;
+	void* declaration_section;
 };
 
 struct node_function_decl
 {
 	enum node_type type;
 	int line;
-	char * name;
+	char* name;
 };
 
 struct node_process
 {
 	enum node_type type;
 	int line;
-	char * name;
-	void *declaration_section;
+	char* name;
+	void* declaration_section;
 };
 
 struct node_function_body
 {
 	enum node_type type;
 	int line;
-	char * name;
-	void * declaration_section;
+	char* name;
+	void* declaration_section;
 };
 
 struct node_instance
 {
 	enum node_type type;
 	int line;
-	char * name;
+	char* name;
 };
 
 struct node_package_decl
 {
 	enum node_type type;
 	int line;
-	char *name;
-	struct ll_node *declarations;
+	char* name;
+	void* declaration_section;
 };
 
 struct node_package_body
 {
 	enum node_type type;
 	int line;
-	char *name;
-	struct ll_node *declarations;
+	char* name;
+	void* declaration_section;
 };
 
 //generic ast node
@@ -198,7 +208,7 @@ struct ast_labeled_node
 {
 	enum node_type type;
 	int line;
-	char *name;
+	char* name;
 };
 
 //generic node, base node of all others
@@ -207,12 +217,20 @@ struct ast_node
 	enum node_type type;
 };
 
+struct node_with_declaration_section
+{
+	enum node_type type;
+	int line;
+	char* name;
+	void* declaration_section;
+};
+
 
 struct node_interface_element
 {
 	enum node_type type;
 	int line;
-	struct ll_node *identifier_list;
+	struct ll_node* identifier_list;
 	enum mode mode;
 	enum object_class object_class;
 	struct text_section *data_type;
@@ -229,7 +247,6 @@ struct node_port
 	struct text_section init_value;
 };
 
-
 struct node_generic
 {
 	enum node_type type;
@@ -240,23 +257,23 @@ struct node_generic
 };
 
 
-struct node_component         *create_component(char *str, int line); 
-struct node_entity            *create_entity(char *str, int line); 
-struct node_architecture      *create_archtitecture(char *arch_name, char *entity_name, int line); 
-struct node_function_body     *create_function_body(char *name, int line); 
-struct node_procedure_body    *create_procedure_body(char *name, int line); 
-struct node_function_decl     *create_function_decl(char *name, int line); 
-struct node_procedure_decl    *create_procedure_decl(char *name, int line); 
-struct node_process           *create_process(char *name, int line); 
-struct node_if_generate       *create_if_generate(char *name, int line); 
-struct node_for_generate      *create_for_generate(char *name, int line); 
-struct node_instance          *create_instance(char *name, int line); 
-struct node_interface_element *create_interface_element(int line); 
-struct node_block             *create_block(uint32_t line);
-struct node_package_decl      *create_package_decl(char *name, int line);
-struct node_package_body      *create_package_body(char *name, int line);
-struct node_port              *create_port(char *name, int line);
-struct node_generic           *create_generic(char *name, int line);
+struct node_component*         create_component(char *str, int line); 
+struct node_entity*            create_entity(char *str, int line); 
+struct node_architecture*      create_archtitecture(char *arch_name, char *entity_name, int line); 
+struct node_function_body*     create_function_body(char *name, int line); 
+struct node_procedure_body*    create_procedure_body(char *name, int line); 
+struct node_function_decl*     create_function_decl(char *name, int line); 
+struct node_procedure_decl*    create_procedure_decl(char *name, int line); 
+struct node_process*           create_process(char *name, int line); 
+struct node_if_generate*       create_if_generate(char *name, int line); 
+struct node_for_generate*      create_for_generate(char *name, int line); 
+struct node_instance*          create_instance(char *name, int line); 
+struct node_interface_element* create_interface_element(int line); 
+struct node_block*             create_block(uint32_t line);
+struct node_package_decl*      create_package_decl(char *name, int line);
+struct node_package_body*      create_package_body(char *name, int line);
+struct node_port*              create_port(char *name, int line);
+struct node_generic*           create_generic(char *name, int line);
 
 
 #endif

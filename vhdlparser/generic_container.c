@@ -15,29 +15,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+#include "generic_container.h"
 
-#ifndef _VECTOR_H_
-#define _VECTOR_H_
-
-#define VECTOR_SIZE_GROWTH 4
-
-typedef struct vector_t 
-{
-	int count;
-	int capacity;
-	void** data; 
-} vector;
-
-
-vector* vector_new(int capacity);
-int vector_add(vector *vec, void *item);
-int vector_append_front(vector *vec, void *item);
-int vector_add_range(vector* vec, vector* range);
-void *vector_get(vector *vec, int idx);
-int vector_set(vector *vec, int idx, void *data);
-void vector_free(vector* vec);
-void vector_reverse_order(vector* vec);
-vector * vector_merge(vector* vec1, vector* vec2);
-
-#endif /*_VECTOR_H_*/
-
+extern inline void* gc_new(int type);
+extern inline void gc_free(void* container, int type);
+extern inline void gc_append_back(void * container, void* data, int type);
+extern inline void* gc_get(void * container, int index, int type);
+extern inline int gc_set(void * container, int index, void* data, int type);
+extern inline void gc_reverse_order(void *container, int type);
+extern inline void * gc_merge(void* container1, void* container2, int type);
+extern inline size_t gc_count(void *container, int type);

@@ -27,28 +27,19 @@
 #include "parser_error.h"
 #include "ast.h"
 #include "vector.h"
+#include "vhdlparser.h"
+#include "generic_container.h"
 
-extern uint32_t yytextposition;
-//extern FILE * yyin;
-extern struct ll_node * parse_result; 
-extern struct ll_node * error_list;
- 
-extern char* find_entity_name;
-extern struct node_entity *found_entity;
-extern char* find_component_name;
-extern struct node_component *found_component;
-
-void generate_output(struct ll_node *parse_result, int level);
-void print_errors(struct ll_node *error_list);
+void generate_output(void* ast, int level);
 void print_entity(struct node_entity *entity, FILE * src_file);
 void print_component(struct node_component *component, FILE * src_file);
 void print_generic_section(vector *generic_vector, FILE * src_file);
 void print_port_section(vector *port_vector, FILE * src_file);
 
-/*not used anymore*/
-struct node_entity* find_entity(struct ll_node *parse_result, char *name);
 
 void print_text_section(FILE *f, struct text_section *txt_sec);
+
+void print_errors(void* error_list);
 
 /*
 [code_hierarchy]
@@ -57,107 +48,55 @@ LEVEL LINE TYPE NAME
 LINE MESSAGE
 */
 
-
 int main(int argc, char *argv[])
 {
-	yyscan_t myscanner;
 	FILE *infile; 
+	vhdl_parser_result *result = vhdl_parser_result_init();;
 
-	if (argc == 2)
-	{
+	if (argc == 2) {
 		infile = fopen(argv[1], "r");
-
-		yylex_init_extra(0, &myscanner);
-		yyset_in(infile, myscanner);
-		yyparse(myscanner);
-		yylex_destroy(myscanner);
-
+		vhdl_parser(infile, result, PARSE_MODE_SIMPLE);
 
 		printf("[code_hierarchy]\n");
-		generate_output(parse_result, 0);
+		generate_output(result->ast, 0);
 
 		printf("[errors]\n");	
-		print_errors(error_list);
-	}
-	else if (argc == 4)
-	{
-		if (!strcmp("--entity", argv[1]))
-		{
+		print_errors(result->errors);
+	} else if (argc == 4) {
+		if (!strcmp("--entity", argv[1])) {
 			infile = fopen(argv[3], "r");
-			find_entity_name = argv[2];
+			vhdl_parser(infile, result, PARSE_MODE_SIMPLE);
+			struct node_entity* found_entity = find_entity(result->ast, argv[2]);
 			
-			yylex_init_extra(0, &myscanner);
-			yyset_in(infile, myscanner);
-			yyparse(myscanner);
-			yylex_destroy(myscanner);
-			
-			
-			if (found_entity == NULL) // entity not found
-			{
+			if (found_entity == NULL) {// entity not found
 				struct parser_error_1s *err = malloc(sizeof(struct parser_error_1s));
-				err->s0 = find_entity_name;
+				err->s0 = argv[2];
 				err->id = ERROR_ENTITY_NOT_FOUND;
 				err->line = 0;
-				error_list = ll_append_back(error_list, err);
-				print_errors(error_list);
+				agc_append_back(result->errors, err);
+				print_errors(result->errors);
 			} else {
 				print_entity(found_entity, infile);
 			}
-		}
-		else if(!strcmp("--component", argv[1]))
-		{
+		} else if(!strcmp("--component", argv[1])) {
 			infile = fopen(argv[3], "r");
-			find_component_name = argv[2];
+			vhdl_parser(infile, result, PARSE_MODE_SIMPLE);
+			struct node_component* found_component = find_component(result->ast, argv[2]);
 			
-			yylex_init_extra(0, &myscanner);
-			yyset_in(infile, myscanner);
-			yyparse(myscanner);
-			yylex_destroy(myscanner);
-			
-			if (found_component == NULL) // entity not found
-			{
+			if (found_component == NULL) { // entity not found
 				struct parser_error_1s *err = malloc(sizeof(struct parser_error_1s));
-				err->s0 = find_component_name;
+				err->s0 = argv[2];
 				err->id = ERROR_COMPONENT_NOT_FOUND;
 				err->line = 0;
-				error_list = ll_append_back(error_list, err);
-				print_errors(error_list);
+				agc_append_back(result->errors, err);
+				print_errors(result->errors);
 			} else {
 				print_component(found_component, infile);
 			}
 		}
-		/*else if(!strcmp("--vectest", argv[1]))
-		{
-			vector* vec = vector_new(4);
-			vector_add(vec, "test0");
-			vector_add(vec, "test1");
-			vector_add(vec, "test2");
-			vector_add(vec, "test3");
-			vector_add(vec, "test4");
-			
-			printf("%i\n", vec->capacity);
-			
-			vector* vec2 = vector_new(4);
-			vector_add(vec2, "vec2test0");
-			vector_add(vec2, "vec2test1");
-			vector_add(vec2, "vec2test2");
-			vector_add(vec2, "vec2test3");
-			vector_add(vec2, "vec2test4");
-			
-			vector_add_range(vec, vec2);
-			
-			for(int i=0; i<vec->count; i++)
-			{
-				printf("%s\n", (char*)vector_get(vec, i));
-			}
-		}*/
 	}
-	
-	
-	
 	return 0;
 }
-
 
 void print_component(struct node_component *component, FILE * src_file)
 {
@@ -171,18 +110,15 @@ void print_entity(struct node_entity *entity, FILE * src_file)
 	print_port_section(entity->port_section, src_file);
 }
 
-
 void print_generic_section(vector *generic_vector, FILE * src_file)
 {
 	printf("[generic]\n");
 	
-	if(generic_vector == NULL)
-	{
+	if (generic_vector == NULL) {
 		return;
 	}
 	
-	for(int i=0; i<generic_vector->count; i++)
-	{
+	for (int i=0; i<generic_vector->count; i++) {
 		struct node_generic * generic = (struct node_generic*)vector_get(generic_vector, i); 
 		printf("%s\t", generic->name);
 			
@@ -198,25 +134,21 @@ void print_generic_section(vector *generic_vector, FILE * src_file)
 	}
 }
 
-
 void print_port_section(vector *port_vector, FILE * src_file)
 {
 	printf("[port]\n");
 	
-	if(port_vector == NULL)
-	{
+	if (port_vector == NULL) {
 		return;
 	}
 	
-	for(int i=0; i<port_vector->count; i++)
-	{
+	for (int i=0; i<port_vector->count; i++) {
 		struct node_port * port = (struct node_port*)vector_get(port_vector, i); 
 		printf("%s\t%x\t", port->name, port->mode);
 			
 		print_text_section(src_file, &port->data_type);
 			
-		if(port->init_value.end_position != 0)
-		{
+		if(port->init_value.end_position != 0) {
 			printf("\t");
 			print_text_section(src_file, &port->init_value);
 		}
@@ -228,49 +160,48 @@ void print_port_section(vector *port_vector, FILE * src_file)
 void print_text_section(FILE *f, struct text_section *txt_sec)
 {
 	fseek(f, txt_sec->start_position, SEEK_SET);
-	int i;
-	for( i=0; i <= txt_sec->end_position - txt_sec->start_position; i++)
-	{
+	for (int i=0; i <= txt_sec->end_position - txt_sec->start_position; i++) {
 		char c = getc(f);
-		if(c=='\n' || c =='\t') {
+		if (c=='\n' || c =='\t') {
 			putchar(' ');
-		}else if (c=='-'){
+		} else if (c=='-') {
 			char next_char = getc(f);
 			i++;
 			if (next_char == '-') {
 				next_char = getc(f);
 				i++;
-				while(next_char != '\n'){
+				while (next_char != '\n') {
 					next_char = getc(f);
 					i++;
 				}
-			}else{
+			} else {
 				putchar(c);
 				putchar(next_char);
 			}
-		}else{
+		} else {
 			putchar(c);
 		}
 	}
 }
 
-void generate_output(struct ll_node *parse_result, int level)
+void generate_output(void* ast, int level)
 {
-	while(parse_result != NULL)
-	{
-		switch ( ((struct ast_node*)parse_result->data)->type )
-		{
+	if (ast == NULL) {
+		return;
+	}
+	void* iter;
+	agc_iterate_begin(ast, iter) {
+		switch ( ((struct ast_node*)iter)->type ) {
 			case TYPE_ENTITY:
 			{
-				struct node_entity *entity = ((struct node_entity*)parse_result->data);
-				
+				struct node_entity* entity = ((struct node_entity*)iter);
 				printf("%i\t%i\tEntity\t%s\n", level, entity->line, entity->name);
 			}
 				break;
 				
 			case TYPE_ARCHITECTURE:
 			{
-				struct node_architecture *architecture = ((struct node_architecture*)parse_result->data);
+				struct node_architecture *architecture = ((struct node_architecture*)iter);
 				printf("%i\t%i\tArch.\t%s\n", level, architecture->line, architecture->name);
 				generate_output(architecture->declaration_section, level+1);
 				generate_output(architecture->concurrent_statements, level+1);
@@ -279,7 +210,7 @@ void generate_output(struct ll_node *parse_result, int level)
 				
 			case TYPE_BLOCK:
 			{
-				struct node_block *block = ((struct node_block*)parse_result->data);
+				struct node_block *block = ((struct node_block*)iter);
 				printf("%i\t%i\tBlock\t%s\n", level, block->line, block->name);
 				generate_output(block->declaration_section, level+1);
 				generate_output(block->concurrent_statements, level+1);
@@ -288,7 +219,7 @@ void generate_output(struct ll_node *parse_result, int level)
 			
 			case TYPE_FUNCTION_BODY:
 			{
-				struct node_function_body *function = ((struct node_function_body*)parse_result->data);
+				struct node_function_body *function = ((struct node_function_body*)iter);
 				printf("%i\t%i\tFunc.\t%s\n", level, function->line, function->name);
 				generate_output(function->declaration_section, level+1);
 			}
@@ -296,7 +227,7 @@ void generate_output(struct ll_node *parse_result, int level)
 			
 			case TYPE_PROCEDURE_BODY:
 			{
-				struct node_procedure_body *proc = ((struct node_procedure_body*)parse_result->data);
+				struct node_procedure_body *proc = ((struct node_procedure_body*)iter);
 				printf("%i\t%i\tProc.\t%s\n", level, proc->line, proc->name);
 				generate_output(proc->declaration_section, level+1);
 			}
@@ -304,14 +235,14 @@ void generate_output(struct ll_node *parse_result, int level)
 			
 			case TYPE_COMPONENT:
 			{
-				struct node_component *comp = ((struct node_component*)parse_result->data);
+				struct node_component *comp = ((struct node_component*)iter);
 				printf("%i\t%i\tComp.\t%s\n", level, comp->line, comp->name);
 			}
 				break;
 			
 			case TYPE_IF_GENERATE:
 			{
-				struct node_generate *gen = ((struct node_generate*)parse_result->data);
+				struct node_generate *gen = ((struct node_generate*)iter);
 				printf("%i\t%i\tIf gen.\t%s\n", level, gen->line, gen->name);
 				generate_output(gen->declaration_section, level+1);
 				generate_output(gen->concurrent_statements, level+1);
@@ -320,7 +251,7 @@ void generate_output(struct ll_node *parse_result, int level)
 			
 			case TYPE_FOR_GENERATE:
 			{
-				struct node_generate *gen = ((struct node_generate*)parse_result->data);
+				struct node_generate *gen = ((struct node_generate*)iter);
 				printf("%i\t%i\tFor gen.\t%s\n", level, gen->line, gen->name);
 				generate_output(gen->declaration_section, level+1);
 				generate_output(gen->concurrent_statements, level+1);
@@ -329,13 +260,10 @@ void generate_output(struct ll_node *parse_result, int level)
 			
 			case TYPE_PROCESS:
 			{
-				struct node_process *process = ((struct node_process*)parse_result->data);
-				if (process->name == NULL)
-				{
+				struct node_process *process = ((struct node_process*)iter);
+				if (process->name == NULL) {
 					printf("%i\t%i\tProcess\tUNNAMED\n", level, process->line);
-				}
-				else
-				{
+				} else {
 					printf("%i\t%i\tProcess\t%s\n", level, process->line, process->name);
 				}
 				generate_output(process->declaration_section, level+1);
@@ -344,24 +272,24 @@ void generate_output(struct ll_node *parse_result, int level)
 				
 			case TYPE_INSTANCE:
 			{
-				struct node_instance *inst = ((struct node_instance*)parse_result->data);
+				struct node_instance *inst = ((struct node_instance*)iter);
 				printf("%i\t%i\tInstance\t%s\n", level, inst->line, inst->name);
 			}
 				break;
 				
 			case TYPE_PACKAGE_DECLARATION:
 			{
-				struct node_package_decl *pkg_decl = ((struct node_package_decl*)parse_result->data);
+				struct node_package_decl *pkg_decl = ((struct node_package_decl*)iter);
 				printf("%i\t%i\tPackage\t%s\n", level, pkg_decl->line, pkg_decl->name);
-				generate_output(pkg_decl->declarations, level+1);
+				generate_output(pkg_decl->declaration_section, level+1);
 			}
 				break;
 			
 			case TYPE_PACKAGE_BODY:
 			{
-				struct node_package_body *pkg_body = ((struct node_package_body*)parse_result->data);
+				struct node_package_body *pkg_body = ((struct node_package_body*)iter);
 				printf("%i\t%i\tPackage\t%s\n", level, pkg_body->line, pkg_body->name);
-				generate_output(pkg_body->declarations, level+1);
+				generate_output(pkg_body->declaration_section, level+1);
 			}
 				break;
 			
@@ -369,21 +297,19 @@ void generate_output(struct ll_node *parse_result, int level)
 				printf("Error: Unkown Object at level %i \n", level);
 				break;
 		}
-		parse_result = parse_result->next; 
-	}
+	} agc_iterate_end(ast, iter);
 }
 
 
-void print_errors(struct ll_node *error_list)
+void print_errors(void* errors)
 {
-	struct ll_node *node = error_list;
+	void* iter;
 	struct parser_error* err;
-	while(node != NULL)
-	{
-		err = (struct parser_error*)(node->data);
+	
+	agc_iterate_begin(errors, iter) {
+		err = (struct parser_error*)iter;
 		printf("%i\t", err->line);
-		switch (err->id)
-		{
+		switch (err->id) {
 			case ERROR_MESSAGE:
 				printf("%s", ((struct parser_error_1s*)(err))->s0 );
 				break;
@@ -422,33 +348,10 @@ void print_errors(struct ll_node *error_list)
 				break;
 		}
 		printf("\n");
-		node = node->next;
-	}
+	} agc_iterate_end(errors, iter);
 }
 
-/*
-entity can only be on the top level
-*/
-struct node_entity* find_entity(struct ll_node *parse_result, char *name)
-{
-	while(parse_result != NULL)
-	{
-		switch ( ((struct ast_node*)parse_result->data)->type )
-		{
-			case TYPE_ENTITY:
-				if ( !strcmp( ((struct node_entity*)parse_result->data)->name, name) )
-				{
-					return parse_result->data;
-				}
-				break;
-				
-				default:
-					break;
-		}
-		parse_result = parse_result->next; 
-	}
-	return NULL;
-}
+
 
 
 
