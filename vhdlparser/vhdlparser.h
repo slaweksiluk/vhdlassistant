@@ -39,16 +39,16 @@ typedef struct
 typedef struct
 {
 	long yytextposition;
-	vhdl_parser_result *parser_result;
+	vhdl_parser_result* parser_result;
 } scanner_yyextra;
 
 #define PARSE_MODE_SIMPLE   0
 #define PARSE_MODE_FULL     1
 
 vhdl_parser_result* vhdl_parser_result_init();
-int vhdl_parser(FILE *infile, vhdl_parser_result * result, int mode);
-struct node_entity* find_entity(void *ast, char *name);
-struct node_component* find_component(void *ast, char *name);
+int vhdl_parser(FILE* infile, vhdl_parser_result * result, int mode);
+struct node_entity* find_entity(void* ast, char* name);
+struct node_component* find_component(void *ast, char* name);
 
 #endif /*__VHDL_PARSER_H__*/
  

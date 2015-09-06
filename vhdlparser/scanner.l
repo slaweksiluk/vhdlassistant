@@ -239,12 +239,16 @@ base_specifier       (B|b|O|o|X|x)
 
 {base_specifier}(\"{extended_digit}(_?{extended_digit})*\"|\%{extended_digit}(_?{extended_digit})*\%)  { return t_StringLit; }
 
+\\([^\\]|\\\\)*\\  {yylval->str = (char*)malloc((yyleng+1)*sizeof(char));
+	memcpy(yylval->str, yytext, yyleng+1);
+	return t_Identifier;}
 
 \-\-.*$    {/* comment */}
-
 
 . {
 	struct parser_error_1c *err = create_error_illegal_symbol(yylineno, yytext[0]); 
 	agc_append_back(((scanner_yyextra*)yyextra)->parser_result->errors, err);
   }
+
+
 
