@@ -352,14 +352,6 @@ names can be:
 selected_name:  prefix . suffix
 */
 
-//start:
-//	opt_design_unit {}	
-//    ;
-
-//opt_design_unit:    
-//	/* nothing */  {}
-//    |	design_unit    {}
-//    ;
 
 start
 	: design_unit_list
@@ -405,13 +397,11 @@ idf_list
 		{
 			$$ = agc_new();
 			agc_append_back($$, $1); 
-			/*$$ = ll_append_back(NULL, $1);*/
-			}
+		}
 	| idf_list t_Comma t_Identifier 
 		{ 
 			$$ = $1;
 			agc_append_back($1, $3);
-			/*$$ = ll_append_back($1, $3);*/ 
 		}
 	;
 
@@ -446,7 +436,7 @@ lib_clause
 	;
 
 use_clause
-	: t_USE selected_name_list t_Semicolon	{}
+	: t_USE selected_name_list t_Semicolon  {}
 	;
 
 selected_name_list
@@ -1758,27 +1748,20 @@ concurrent_stat_with_label:
 	t_Identifier t_Colon 
 	concurrent_stat_with_label_1
 		{
-			if ($3 != NULL)
-			{
-				if ($3->type == TYPE_PROCESS || $3->type == TYPE_BLOCK || $3->type == TYPE_IF_GENERATE || $3->type == TYPE_FOR_GENERATE)
-				{
+			if ($3 != NULL) {
+				if ($3->type == TYPE_PROCESS || $3->type == TYPE_BLOCK || $3->type == TYPE_IF_GENERATE || $3->type == TYPE_FOR_GENERATE) {
 					struct ast_labeled_node* labeled_node = (struct ast_labeled_node*)$3;
 					
 					/*check name*/
-					if (labeled_node->name == NULL)
-					{
+					if (labeled_node->name == NULL) {
 						labeled_node->name = $1;
-					} else
-					{
-						if (strcmp($1,labeled_node->name))
-						{
+					} else {
+						if (strcmp($1,labeled_node->name)) {
 							struct parser_error_2s* err = create_error_label_missmatch(labeled_node->line, strdup($1), labeled_node->name);
 							agc_append_back(result->errors, err);
 						}
 					}
-				}
-				else if ($3->type == TYPE_INSTANCE)
-				{
+				} else if ($3->type == TYPE_INSTANCE) {
 					struct node_instance* inst = (struct node_instance*)$3;
 					inst->line = @2.first_line;
 					inst->name = $1;
@@ -1816,24 +1799,18 @@ concurrent_stat_with_label_1:
 
 block_stat:
 	t_BLOCK block_guard opt_t_IS
-		{
-			$<node>$ = (struct ast_node*)create_block(@1.first_line);
-		}
 		block_generic_stuff
-		{}
 		block_port_stuff
-		{}
 		block_decl_part
-			{
-				((struct node_block*)$<node>4)->declaration_section = $block_decl_part;
-			}
 	t_BEGIN
 	 	opt_concurrent_stats
 	t_END t_BLOCK opt_t_Identifier t_Semicolon
 		{
-			((struct node_block*)$<node>4)->concurrent_statements = $opt_concurrent_stats;
-			((struct node_block*)$<node>4)->name = $opt_t_Identifier;
-			$$ = $<node>4;
+			struct node_block* block = create_block(@1.first_line);
+			block->declaration_section = $block_decl_part;
+			block->concurrent_statements = $opt_concurrent_stats;
+			block->name = $opt_t_Identifier;
+			$$ = (struct ast_node*)block;
 		}
 	;
 
