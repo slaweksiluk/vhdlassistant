@@ -340,7 +340,7 @@ void print_errors(void* errors)
 			case ERROR_COMPONENT_NOT_FOUND:
 				printf("component %s could not be found", ((struct parser_error_1s*)(err))->s0);
 				break;
-			case ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE:
+			case ERROR_EMPTY_PORT_OR_GENERIC_CLAUSE:
 				printf("Port or Generic clauses must NOT be empty");
 				break;
 			default:

@@ -326,6 +326,8 @@ int yyerror(YYLTYPE * yylloc, yyscan_t scanner, vhdl_parser_result *result, cons
 
 %type <nPtr> idf_list
 
+%type <nPtr> lib_clause
+
 %type <vec> port_clause
 %type <vec> port_interface_list
 %type <vec> port_element
@@ -344,6 +346,9 @@ int yyerror(YYLTYPE * yylloc, yyscan_t scanner, vhdl_parser_result *result, cons
 %type <num> opt_mode
 
 %type <txt_sec> opt_var_init
+
+
+%type <str> arch_entity_id
 
 %%
 
@@ -432,7 +437,16 @@ context_item
 	;
 
 lib_clause
-	: t_LIBRARY idf_list t_Semicolon        {}
+	: t_LIBRARY idf_list t_Semicolon 
+		{
+			void* iter;
+			struct node_library* lib = NULL;
+			agc_iterate_begin($2, iter){
+				lib = create_library(iter, @1.first_line);
+				agc_iterate_set_current($2, iter, lib);
+			} agc_iterate_end($2, iter);
+			$$ = $2;
+		}
 	;
 
 use_clause
@@ -509,7 +523,7 @@ generic_clause
 	: t_GENERIC t_LeftParen generic_interface_list t_RightParen t_Semicolon { $$ = $3; }
 	| t_GENERIC t_LeftParen t_RightParen t_Semicolon 
 		{ 
-			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
+			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENERIC_CLAUSE); 
 			agc_append_back(result->errors, err);
 			$$ = NULL;
 		}
@@ -519,7 +533,7 @@ port_clause
 	: t_PORT t_LeftParen port_interface_list t_RightParen t_Semicolon { $$ = $3; }
 	| t_PORT t_LeftParen t_RightParen t_Semicolon 
 		{ 
-			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENEERIC_CLAUSE); 
+			struct parser_error *err = (struct parser_error*)create_error_id(@1.first_line, ERROR_EMPTY_PORT_OR_GENERIC_CLAUSE); 
 			agc_append_back(result->errors, err);
 			$$ = NULL;
 		}
@@ -547,20 +561,30 @@ opt_t_Identifier
 	;
 
 architecture_body:
-	t_ARCHITECTURE t_Identifier t_OF t_Identifier t_IS
+	t_ARCHITECTURE t_Identifier t_OF arch_entity_id t_IS
 		architecture_decl_part
 	t_BEGIN
 		opt_concurrent_stats
 	t_END opt_architecture_end t_Semicolon
 		{
-			int32_t line_no   = @1.first_line;
+			int line_no   = @1.first_line;
 			char* entity_name = $4;
 			char* arch_name   = $2;
-			struct node_architecture *arch = create_archtitecture(arch_name, entity_name, line_no);
+			struct node_architecture* arch = create_archtitecture(arch_name, entity_name, line_no);
 			arch->declaration_section = $6;
 			arch->concurrent_statements = $8;
 			$$ = (struct ast_node*)arch;
 			LABEL_CHECK($10, $2, @2.first_line);
+		}
+	;
+
+arch_entity_id
+	: t_Identifier { $$=$1; }
+	| t_Identifier t_Dot t_Identifier 
+		{ 
+			/*modelsim allows the library name to appear in front of the entity name --> ignore it*/
+			free($1); 
+			 $$ = $3;
 		}
 	;
 
@@ -768,26 +792,21 @@ subprog_body:
 	t_END opt_function_or_procedure_t opt_designator t_Semicolon
 		{
 			
-			if ($8 != NULL)
-			{
+			if ($8 != NULL) {
 				struct ast_labeled_node* node = (struct ast_labeled_node*)$1;
-				if (strcmp(node->name, $8))
-				{
+				if (strcmp(node->name, $8)) {
 					struct parser_error_2s* err = create_error_label_missmatch(node->line, node->name, $8);
 					agc_append_back(result->errors, err);
 				}
 			}
 		
-			if ($1->type == TYPE_FUNCTION_DECLARATION)
-			{
+			if ($1->type == TYPE_FUNCTION_DECLARATION) {
 				struct node_function_decl* decl = (struct node_function_decl*)$1;
 				struct node_function_body* func = create_function_body(decl->name, decl->line);
 				func->declaration_section = $3; 
 				free($1);
 				$$ = (struct ast_node*)func;
-			}
-			else if ($1->type == TYPE_PROCEDURE_DECLARATION)
-			{
+			} else if ($1->type == TYPE_PROCEDURE_DECLARATION) {
 				struct node_procedure_decl* decl = (struct node_procedure_decl*)$1;
 				struct node_procedure_body* proc = create_procedure_body(decl->name, decl->line);
 				proc->declaration_section = $3;
@@ -850,8 +869,8 @@ port_element:
 				if ($1 != OC_NOT_SPECIFIED && $1 != OC_SIGNAL) {
 					struct parser_error* err = create_error_id(port->line, ERROR_PORT_OBJECT_CLASS);
 					agc_append_back(result->errors, err);
-				} 
-				if($4 == MODE_NOT_SPECIFIED){
+				}
+				if ($4 == MODE_NOT_SPECIFIED) {
 					port->mode = MODE_IN;
 				} else {
 					port->mode = $4;
@@ -860,7 +879,7 @@ port_element:
 				port->data_type.start_position = @5.start_position;
 				port->data_type.end_position = @5.end_position;
 				
-				if ( $7 == NULL) {
+				if ($7 == NULL) {
 					port->init_value.start_position = 0;
 					port->init_value.end_position = 0;
 				} else {
@@ -899,11 +918,11 @@ generic_element:
 				char * name = (char*)iter;
 				struct node_generic *generic = create_generic(name, @2.first_line);
 				
-				if( $1 != OC_NOT_SPECIFIED && $1 != OC_CONSTANT) {
+				if ($1 != OC_NOT_SPECIFIED && $1 != OC_CONSTANT) {
 					struct parser_error* err = create_error_id(generic->line, ERROR_GENERIC_OBJECT_CLASS);
 					agc_append_back(result->errors, err);
 				} 
-				if($4 != MODE_NOT_SPECIFIED && $4 != MODE_IN){
+				if ($4 != MODE_NOT_SPECIFIED && $4 != MODE_IN) {
 					struct parser_error* err = create_error_id(generic->line, ERROR_GENERIC_MODE);
 					agc_append_back(result->errors, err);
 				}
@@ -911,7 +930,7 @@ generic_element:
 				generic->data_type.start_position = @5.start_position;
 				generic->data_type.end_position = @5.end_position;
 				
-				if ( $7 == NULL) {
+				if ($7 == NULL) {
 					generic->init_value.start_position = 0;
 					generic->init_value.end_position = 0;
 				} else {
@@ -974,12 +993,12 @@ opt_mode
 	: /* nothing */ { $$ = MODE_NOT_SPECIFIED; }
 	| mode          { $$ = $1; }
 	;
-  
+
 opt_object_class
 	: /* nothing */ { $$ = OC_NOT_SPECIFIED; }
 	| object_class  { $$ = $1;               }
 	;
-  
+
 mode
 	: t_IN       { $$ = MODE_IN; }
 	| t_OUT      { $$ = MODE_OUT; }
@@ -1004,7 +1023,7 @@ association_list_1
 
 gen_association_list
 	: t_LeftParen gen_association_elements gen_association_list_1 t_RightParen
-    ;
+	;
 
 gen_association_list_1
 	: /* nothing */
@@ -1379,17 +1398,14 @@ record_type_definition:
 	{}
 	;
 
-opt_more_element_decls:
-	/* nothing */
-	{}
-    |	opt_more_element_decls element_decl
-	{}
-    ;
+opt_more_element_decls
+	: /* nothing */
+	| opt_more_element_decls element_decl
+	;
 
 element_decl:
 	idf_list t_Colon subtype_indic t_Semicolon
-	{}
-    ;
+	;
 
 access_type_definition:
 	t_ACCESS subtype_indic_opt_incomplete
@@ -1542,8 +1558,8 @@ opt_var_init:
 		}
 	;
 
-object_class:
-	  t_CONSTANT  { $$ = OC_CONSTANT; }
+object_class
+	: t_CONSTANT  { $$ = OC_CONSTANT; }
 	| t_SIGNAL    { $$ = OC_SIGNAL;   }
 	| t_VARIABLE  { $$ = OC_VARIABLE; }
 	| t_FILE      { $$ = OC_FILE;     }
@@ -1624,14 +1640,11 @@ entity_spec:
 	{}
     ;
 
-entity_name_list:
-	designator opt_more_entity_name_list
-	{}
-    |	t_OTHERS
-	{}
-    |	t_ALL
-	{}
-    ;
+entity_name_list
+	: designator opt_more_entity_name_list
+	| t_OTHERS
+	| t_ALL
+	;
 
 opt_more_entity_name_list:
 	/* nothing */	{}
@@ -1728,13 +1741,10 @@ concurrent_stat_1:
 concurrent_stat_without_label:
 	concurrent_stat_without_label_1
 		{
-			if ($1 != NULL)
-			{
-				if ($1->type == TYPE_PROCESS || $1->type == TYPE_BLOCK )
-				{
+			if ($1 != NULL) {
+				if ($1->type == TYPE_PROCESS || $1->type == TYPE_BLOCK ) {
 					struct ast_labeled_node* labeled_node = (struct ast_labeled_node*)$1;
-					if (labeled_node->name != NULL)
-					{
+					if (labeled_node->name != NULL) {
 						struct parser_error_2s* err = create_error_label_missmatch(labeled_node->line, NULL, labeled_node->name);
 						agc_append_back(result->errors, err);
 					}
@@ -1893,7 +1903,7 @@ comp_mark_with_keyword:
     ;
 
 /* NOTE: component instantiation statements without a keyword look
-**	 like concurrent procedure calls
+**	 like concurrent procedure calls (and will be handled as such)
 */
 
 opt_generic_map:
@@ -1905,10 +1915,10 @@ generic_map:
 	t_GENERIC t_MAP named_association_list    {}
     ;
 
-opt_port_map:
-	/* nothing */			{}
-    |	port_map
-    ;
+opt_port_map
+	: /* nothing */
+	| port_map
+	;
 
 port_map:
     	t_PORT t_MAP named_association_list	{}
@@ -1930,19 +1940,12 @@ opt_postponed:
 	| t_POSTPONED   {}
 	;
 
-concurrent_signal_assign_stat:
-    	condal_signal_assign
-    	{}
-
-    |	t_POSTPONED condal_signal_assign
-    	{}
-
-|	sel_signal_assign
-    	{}
-
-|	t_POSTPONED sel_signal_assign
-        {}
-    ;
+concurrent_signal_assign_stat
+	: condal_signal_assign
+	| t_POSTPONED condal_signal_assign
+	| sel_signal_assign
+	| t_POSTPONED sel_signal_assign
+	;
 
 condal_signal_assign:
     	target t_LESym opt_guarded delay_mechanism condal_wavefrms t_Semicolon
@@ -2263,10 +2266,9 @@ procedure_call_stat_with_args:
 	{}
     ;
 
-return_stat:
-	t_RETURN opt_expr t_Semicolon 
-	{}
-    ;
+return_stat
+	: t_RETURN opt_expr t_Semicolon 
+	;
 
 opt_expr:
 	/* nothing */	{}

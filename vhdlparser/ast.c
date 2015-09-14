@@ -18,6 +18,15 @@
 #include "ast.h"
 #include "malloc.h"
 
+struct node_library *create_library(char *str, int line)
+{
+	struct node_library *lib = malloc(sizeof(struct node_library));
+	lib->type = TYPE_LIBRARY;
+	lib->name = str;
+	lib->line = line;
+	return lib;
+}
+
 struct node_entity *create_entity(char *str, int line)
 {
 	struct node_entity *entity = malloc(sizeof(struct node_entity));

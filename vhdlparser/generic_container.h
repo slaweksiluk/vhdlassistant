@@ -156,6 +156,15 @@ inline size_t gc_count(void *container, int type)
 	} } while(0)
 
 
+#define gc_iterate_set_current(gc, iterator, new_data, type)    do { \
+		if (type == GC_LIST) { \
+			iterator ## _node->data = new_data; \
+		} \
+		if (type == GC_VECTOR) { \
+			((vector*)gc)->data[iterator ## _index] = new_data; \
+		} \
+	} while(0)
+
 #endif /*_GENERIC_CONTAINER_H_*/
 
 

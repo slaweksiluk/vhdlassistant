@@ -28,6 +28,8 @@
 #define agc_count(c)              gc_count(c, AST_GENERIC_CONTAINER)
 #define agc_iterate_begin(c,iter) gc_iterate_begin(c, iter, AST_GENERIC_CONTAINER)
 #define agc_iterate_end(c,iter)   gc_iterate_end(c, iter, AST_GENERIC_CONTAINER)
+#define agc_iterate_set_current(c,iter,data)   gc_iterate_set_current(c, iter, data, AST_GENERIC_CONTAINER)
+
 
 enum node_type 
 {
@@ -47,7 +49,8 @@ enum node_type
 	TYPE_PACKAGE_DECLARATION,
 	TYPE_PACKAGE_BODY,
 	TYPE_PORT,
-	TYPE_GENERIC
+	TYPE_GENERIC,
+	TYPE_LIBRARY
 };
 
 
@@ -256,7 +259,14 @@ struct node_generic
 	struct text_section init_value;
 };
 
+struct node_library
+{
+	enum node_type type;
+	int line;
+	char* name;
+};
 
+struct node_library*           create_library(char *str, int line);
 struct node_component*         create_component(char *str, int line); 
 struct node_entity*            create_entity(char *str, int line); 
 struct node_architecture*      create_archtitecture(char *arch_name, char *entity_name, int line); 

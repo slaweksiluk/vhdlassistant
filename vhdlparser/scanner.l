@@ -239,9 +239,12 @@ base_specifier       (B|b|O|o|X|x)
 
 {base_specifier}(\"{extended_digit}(_?{extended_digit})*\"|\%{extended_digit}(_?{extended_digit})*\%)  { return t_StringLit; }
 
-\\([^\\]|\\\\)*\\  {yylval->str = (char*)malloc((yyleng+1)*sizeof(char));
+\\([^\\]|\\\\)*\\  {
+	/*TODO: This also matches new lines: possible solution: \\([^\\\n]|\\\\)*\\ */
+	yylval->str = (char*)malloc((yyleng+1)*sizeof(char));
 	memcpy(yylval->str, yytext, yyleng+1);
-	return t_Identifier;}
+	return t_Identifier;
+}
 
 \-\-.*$    {/* comment */}
 
