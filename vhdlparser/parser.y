@@ -2026,6 +2026,18 @@ generate_stat:
 			gen->name = $8;
 			$$ = (struct ast_node*)gen;
 		}
+	| generation_scheme t_GENERATE
+		concurrent_stats
+	t_END t_GENERATE opt_t_Identifier t_Semicolon
+		{
+			//TODO
+			struct node_generate *gen = (struct node_generate*)$1;
+			gen->declaration_section = NULL;
+			gen->concurrent_statements = $3;
+			gen->name = $6;
+			$$ = (struct ast_node*)gen;
+		}
+	;
 	;
 
 generate_declarative_items
