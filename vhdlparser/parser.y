@@ -152,6 +152,7 @@ int yyerror(YYLTYPE * yylloc, yyscan_t scanner, vhdl_parser_result *result, cons
 %token t_COMPONENT         "[component]"
 %token t_CONFIGURATION     "[configuration]"
 %token t_CONSTANT          "[constant]"
+%token t_CONTEXT           "[context]"
 %token t_DISCONNECT        "[disconnect]"
 %token t_DOWNTO            "[downto]"
 %token t_ELSE              "[else]"
@@ -433,7 +434,8 @@ lib_unit
 
 context_item
 	: lib_clause    {}
-	| use_clause    {}
+	| context_clause {}
+	| use_clause    {} 
 	;
 
 lib_clause
@@ -451,6 +453,10 @@ lib_clause
 
 use_clause
 	: t_USE selected_name_list t_Semicolon  {}
+	;
+
+context_clause
+	: t_CONTEXT selected_name_list t_Semicolon  {}
 	;
 
 selected_name_list
@@ -691,6 +697,7 @@ common_decltve_item
 	| alias_decl
 	| subprog_decl
 	| use_clause
+	| context_clause
 	;
 
 entity_decltve_item

@@ -174,6 +174,7 @@ base_specifier       (B|b|O|o|X|x)
 (?i:units)         { return t_UNITS; }
 (?i:until)         { return t_UNTIL; }
 (?i:use)           { return t_USE; }
+(?i:context)       { return t_CONTEXT; }
 (?i:variable)      { return t_VARIABLE;}
 (?i:wait)          { return t_WAIT;}
 (?i:when)          { return t_WHEN;}
